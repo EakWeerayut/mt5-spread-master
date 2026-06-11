@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UKO/USO Spread Analytics</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #0f111a;
+            --bg-card: #1a1d2d;
+            --bg-card-hover: #222639;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --border-color: #2e334d;
+            --color-primary: #8b5cf6;
+            --color-success: #10b981;
+            --color-danger: #ef4444;
+            --color-warning: #f59e0b;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 20px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header h1 i {
+            color: var(--color-warning);
+        }
+
+        .btn {
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+        }
+
+        .btn:hover {
+            background: #7c3aed;
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            margin: 0;
+            font-size: 16px;
+            color: #fff;
+        }
+
+        .chart-container {
+            width: 100%;
+            height: 500px;
+        }
+        
+        #loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 17, 26, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            display: none;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid var(--border-color);
+            border-top-color: var(--color-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <h2 id="loading-text">Fetching latest data from MT5...</h2>
+    </div>
+
+    <div class="header">
+        <h1><i class="fa-solid fa-oil-well"></i> UKO/USO Spread Analytics</h1>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-secondary" onclick="window.close()">
+                <i class="fa-solid fa-arrow-left"></i> Back
+            </button>
+            <button class="btn" onclick="fetchData()">
+                <i class="fa-solid fa-download"></i> Fetch Latest Data
+            </button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">Spread Over Time: UKOUSD - USOUSD</h3>
+            <p style="color: var(--text-secondary); font-size: 13px; margin: 5px 0 0 0;">Historical spread between UKOUSD.sc and USOUSD.sc filtering out daily rollover gaps.</p>
+        </div>
+        <div id="chart-time" class="chart-container"></div>
+    </div>
+
+    <script>
+        const layoutConfig = {
+            plot_bgcolor: '#1a1d2d',
+            paper_bgcolor: '#1a1d2d',
+            font: { color: '#94a3b8' },
+            xaxis: { 
+                gridcolor: '#2e334d',
+                zerolinecolor: '#2e334d'
+            },
+            yaxis: { 
+                gridcolor: '#2e334d',
+                zerolinecolor: '#475569'
+            },
+            margin: { t: 20, r: 20, l: 50, b: 40 },
+            hovermode: 'closest'
+        };
+
+        async function loadCharts() {
+            try {
+                const res = await fetch('/api/uko_uso_chart_data');
+                const data = await res.json();
+
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                // Chart: Time
+                Plotly.newPlot('chart-time', data.traces_time, {
+                    ...layoutConfig,
+                    xaxis: { ...layoutConfig.xaxis, title: 'Date / Time' },
+                    yaxis: { ...layoutConfig.yaxis, title: 'Spread (UKO - USO)' }
+                });
+
+            } catch (err) {
+                console.error("Error loading charts:", err);
+            }
+        }
+
+        async function fetchData() {
+            document.getElementById('loading-overlay').style.display = 'flex';
+            try {
+                const res = await fetch('/api/uko_uso_fetch');
+                const data = await res.json();
+                if (data.status === 'success') {
+                    await loadCharts();
+                } else {
+                    alert("Fetch failed: " + (data.message || "Unknown error"));
+                }
+            } catch (err) {
+                alert("Error connecting to server.");
+            } finally {
+                document.getElementById('loading-overlay').style.display = 'none';
+            }
+        }
+
+        // Auto load on start
+        loadCharts();
+    </script>
+</body>
+</html>

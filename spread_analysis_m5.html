@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>CMX Analytics Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: #f1f5f9; margin: 0; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; background: #1e293b; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        h1 { color: #38bdf8; margin: 0; }
+        
+        .btn { 
+            background: #38bdf8; color: #0f172a; border: none; padding: 10px 20px; 
+            border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s;
+            display: flex; align-items: center; gap: 8px; font-size: 14px;
+        }
+        .btn:hover { background: #0284c7; color: white; }
+        .btn:disabled { background: #475569; color: #94a3b8; cursor: not-allowed; }
+        
+        .chart-box { margin-bottom: 50px; background: #0f172a; border-radius: 8px; padding: 15px; border: 1px solid #334155; }
+        .chart-title { font-size: 1.2rem; color: #cbd5e1; margin-bottom: 10px; text-align: center; }
+        .chart-desc { text-align: center; color: #94a3b8; font-size: 0.9em; margin-bottom: 15px; }
+        .plot-container { width: 100%; height: 500px; }
+        
+        .loader {
+            border: 3px solid #1e293b; border-top: 3px solid #38bdf8; border-radius: 50%;
+            width: 16px; height: 16px; animation: spin 1s linear infinite; display: none;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .status-msg { color: #10b981; font-size: 0.9em; display: none; }
+        .error-msg { color: #ef4444; font-size: 0.9em; display: none; margin-top: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1>Comprehensive CMX Analytics Dashboard</h1>
+                <div style="color: #94a3b8; margin-top: 5px;">Data is stored locally in CSVs. Data rigorously filtered for Timezone Offsets, Gaps (>15m), and Market Rollovers.</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span id="status-msg" class="status-msg">Update Complete!</span>
+                <button id="fetch-btn" class="btn" onclick="fetchNewData()">
+                    <div id="btn-loader" class="loader"></div>
+                    <span id="btn-text">Fetch New Data from MT5</span>
+                </button>
+            </div>
+        </div>
+        
+        <div id="error-msg" class="error-msg"></div>
+
+        <div class="chart-box">
+            <div class="chart-title">1. Spread vs Days to Expiration</div>
+            <div class="chart-desc">X-Axis: Days until expiration (countdown to 0). Y-Axis: Spread (CMX - XAU).</div>
+            <div id="chart1" class="plot-container"></div>
+        </div>
+
+        <div class="chart-box">
+            <div class="chart-title">2. Spread vs Chronological Time</div>
+            <div class="chart-desc">X-Axis: Real-time Date. Y-Axis: Spread (CMX - XAU).</div>
+            <div id="chart2" class="plot-container"></div>
+        </div>
+
+        <div class="chart-box">
+            <div class="chart-title">3. Inter-delivery Calendar Spreads</div>
+            <div class="chart-desc">X-Axis: Real-time Date. Y-Axis: Price difference between CMX Series. Start point anchored to furthest contract.</div>
+            <div id="chart3" class="plot-container"></div>
+        </div>
+    </div>
+    
+    <script>
+        const layout_base = {
+            plot_bgcolor: '#0f172a',
+            paper_bgcolor: '#0f172a',
+            font: { color: '#f1f5f9' },
+            hovermode: 'closest',
+            legend: { bgcolor: 'rgba(15, 23, 42, 0.8)', bordercolor: '#334155', borderwidth: 1 },
+            margin: { l: 60, r: 30, t: 30, b: 60 }
+        };
+
+        async function loadCharts() {
+            try {
+                const response = await fetch('http://localhost:8080/api/cmx_chart_data');
+                const result = await response.json();
+                
+                if (result.error) {
+                    document.getElementById('error-msg').innerText = result.error;
+                    document.getElementById('error-msg').style.display = 'block';
+                    return;
+                }
+                document.getElementById('error-msg').style.display = 'none';
+
+                // Chart 1
+                const layout1 = Object.assign({}, layout_base, {
+                    xaxis: { title: 'Days to Expiration', autorange: 'reversed', gridcolor: '#334155', zerolinecolor: '#475569', tickcolor: '#94a3b8' },
+                    yaxis: { title: 'Spread (CMX - XAU)', gridcolor: '#334155', zerolinecolor: '#475569', tickcolor: '#94a3b8' }
+                });
+                Plotly.newPlot('chart1', result.traces_dte, layout1);
+
+                // Chart 2
+                const layout2 = Object.assign({}, layout_base, {
+                    xaxis: { title: 'Date', gridcolor: '#334155', zerolinecolor: '#475569', tickcolor: '#94a3b8' },
+                    yaxis: { title: 'Spread (CMX - XAU)', gridcolor: '#334155', zerolinecolor: '#475569', tickcolor: '#94a3b8' }
+                });
+                Plotly.newPlot('chart2', result.traces_time, layout2);
+
+                // Chart 3
+                const layout3 = Object.assign({}, layout_base, {
+                    xaxis: { title: 'Date', gridcolor: '#334155', zerolinecolor: '#475569', tickcolor: '#94a3b8' },
+                    yaxis: { title: 'Calendar Spread Difference', gridcolor: '#334155', zerolinecolor: '#475569', tickcolor: '#94a3b8' }
+                });
+                Plotly.newPlot('chart3', result.traces_calendar, layout3);
+                
+            } catch (err) {
+                console.error("Failed to load charts:", err);
+                document.getElementById('error-msg').innerText = "Failed to load chart data. Ensure the server is running.";
+                document.getElementById('error-msg').style.display = 'block';
+            }
+        }
+
+        async function fetchNewData() {
+            const btn = document.getElementById('fetch-btn');
+            const loader = document.getElementById('btn-loader');
+            const btnText = document.getElementById('btn-text');
+            const statusMsg = document.getElementById('status-msg');
+            const errorMsg = document.getElementById('error-msg');
+            
+            btn.disabled = true;
+            loader.style.display = 'block';
+            btnText.innerText = 'Fetching Data (Takes 5-10s)...';
+            statusMsg.style.display = 'none';
+            errorMsg.style.display = 'none';
+            
+            try {
+                const response = await fetch('http://localhost:8080/api/cmx_fetch', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.status === 'success' || result.status === 'ok') {
+                    statusMsg.innerText = 'Data Successfully Appended!';
+                    statusMsg.style.color = '#10b981';
+                    statusMsg.style.display = 'block';
+                    await loadCharts(); // Reload charts with new data
+                } else {
+                    errorMsg.innerText = result.message || result.error || "Failed to fetch data";
+                    errorMsg.style.display = 'block';
+                }
+            } catch (err) {
+                console.error("Fetch Error:", err);
+                errorMsg.innerText = "Network error. Make sure the backend server is running.";
+                errorMsg.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                loader.style.display = 'none';
+                btnText.innerText = 'Fetch New Data from MT5';
+                setTimeout(() => { statusMsg.style.display = 'none'; }, 5000);
+            }
+        }
+
+        // Initialize charts on load
+        window.onload = loadCharts;
+    </script>
+</body>
+</html>

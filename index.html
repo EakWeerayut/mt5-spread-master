@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Antigravity MT5 Spread Master</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css?v=2">
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-logo">
+                <i class="fa-solid fa-arrows-left-right-to-line logo-icon"></i>
+                <h1>MT5 SPREAD MASTER</h1>
+                <span class="badge badge-premium">v1.1</span>
+            </div>
+            <div class="header-status" style="display: flex; gap: 15px; align-items: center;">
+                <a href="uko_uso_analysis_m5.html" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none;"><i class="fa-solid fa-chart-line"></i> UKO/USO</a>
+                <a href="spread_analysis_m5.html" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none;"><i class="fa-solid fa-chart-line"></i> Gold Analytics</a>
+                <a href="oil_analysis_m5.html" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none;"><i class="fa-solid fa-oil-well"></i> Oil Analytics</a>
+                <div class="status-indicator">
+                    <span class="status-dot green"></span>
+                    <span>Localhost Active (8080)</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Grid Layout -->
+        <main class="app-grid">
+            
+            <!-- Left Panel: Connection Configuration -->
+            <section class="panel panel-config">
+                <div class="panel-header">
+                    <h2><i class="fa-solid fa-server"></i> Terminal Connections</h2>
+                    <button id="btn-save-config" class="btn btn-secondary btn-icon" title="Save Credentials" style="display: none;"><i class="fa-solid fa-floppy-disk"></i></button>
+                </div>
+                
+                <div class="panel-body">
+                    <!-- Broker 1 Config -->
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <h3>Broker 1 (Leg 1)</h3>
+                            <span id="status-b1" class="status-pill offline">Offline</span>
+                        </div>
+                        <div class="form-group">
+                            <label>Broker Account</label>
+                            <select id="b1-account">
+                                <option value="">Loading accounts...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display: none;">
+                            <label>MT5 Path (terminal64.exe)</label>
+                            <input type="text" id="b1-path" placeholder="C:\MT5_Broker1\terminal64.exe" value="C:\Program Files\MetaTrader 5\terminal64.exe">
+                        </div>
+                    </div>
+
+                    <!-- Broker 2 Config -->
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <h3>Broker 2 (Leg 2)</h3>
+                            <span id="status-b2" class="status-pill offline">Offline</span>
+                        </div>
+                        <div class="form-group">
+                            <label>Broker Account</label>
+                            <select id="b2-account">
+                                <option value="">Loading accounts...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="display: none;">
+                            <label>MT5 Path (terminal64.exe)</label>
+                            <input type="text" id="b2-path" placeholder="C:\MT5_Broker2\terminal64.exe" value="C:\Program Files\MetaTrader 5\terminal64.exe">
+                        </div>
+                    </div>
+
+                    <!-- Connection Action Buttons -->
+                    <div class="connection-actions">
+                        <button id="btn-connect" class="btn btn-primary"><i class="fa-solid fa-plug"></i> Initialize Terminals</button>
+                        <button id="btn-disconnect" class="btn btn-danger" disabled><i class="fa-solid fa-power-off"></i> Disconnect</button>
+                    </div>
+
+                    <!-- Favorite Spreads Section -->
+                    <div class="favorites-section">
+                        <div class="favorites-header">
+                            <h3><i class="fa-solid fa-star text-warning" style="color: var(--color-warning);"></i> Favorite Spreads</h3>
+                        </div>
+                        <div id="favorites-list" class="favorites-list">
+                            <div class="favorites-empty">No favorites saved yet.</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Middle Panel: Live Trading Monitor -->
+            <section class="panel panel-trading">
+                <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <h2><i class="fa-solid fa-chart-line"></i> Spread Monitor & Trade</h2>
+                    <button class="session-btn" id="combined-session-btn" title="View Combined Safe Trading Window" style="display: none; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: all 0.2s; font-size: 0.9rem; align-items: center; gap: 6px;"><i class="fa-solid fa-clock"></i> Combined Hours</button>
+                </div>
+                
+                <div class="panel-body">
+                    <!-- Symbol Configuration Row -->
+                    <div class="symbols-config-row">
+                        <div class="symbol-search-container">
+                            <label for="symbol1">Broker 1 Symbol</label>
+                            <div class="autocomplete-wrapper">
+                                <input type="text" id="symbol1" placeholder="e.g. XAUUSD.sc" autocomplete="off" disabled>
+                                <div id="s1-recommendations" class="autocomplete-dropdown"></div>
+                            </div>
+                        </div>
+                        <div class="symbol-connector">
+                            <i class="fa-solid fa-arrows-h"></i>
+                        </div>
+                        <div class="symbol-search-container">
+                            <label for="symbol2">Broker 2 Symbol</label>
+                            <div class="autocomplete-wrapper">
+                                <input type="text" id="symbol2" placeholder="e.g. XAUUSD" autocomplete="off" disabled>
+                                <div id="s2-recommendations" class="autocomplete-dropdown"></div>
+                            </div>
+                        </div>
+                        <div class="symbol-favorite-action">
+                            <label>&nbsp;</label>
+                            <button id="btn-save-favorite" class="btn btn-secondary btn-icon" title="Save to Favorites" disabled>
+                                <i class="fa-regular fa-star"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Live Market Data Cards -->
+                    <div class="live-market-cards">
+                        <!-- Broker 1 Card -->
+                        <div class="price-card" id="card-broker1">
+                            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="badge label-b1">Broker 1</span>
+                                    <span class="card-symbol-name" id="display-sym1">-</span>
+                                    <span id="b1-pos" style="font-size: 0.85rem; margin-left: 10px; font-weight: bold; color: var(--text-muted);"></span>
+                                </div>
+                                <button class="session-btn" id="b1-session-btn" title="View Market Sessions" style="display: none; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: 4px; transition: all 0.2s;"><i class="fa-solid fa-clock"></i></button>
+                            </div>
+                            <div class="price-row">
+                                <div class="price-box bid-box">
+                                    <span class="label">BID</span>
+                                    <span class="price-value" id="b1-bid">-</span>
+                                </div>
+                                <div class="price-box ask-box">
+                                    <span class="label">ASK</span>
+                                    <span class="price-value" id="b1-ask">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Broker 2 Card -->
+                        <div class="price-card" id="card-broker2">
+                            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span class="badge label-b2">Broker 2</span>
+                                    <span class="card-symbol-name" id="display-sym2">-</span>
+                                    <span id="b2-pos" style="font-size: 0.85rem; margin-left: 10px; font-weight: bold; color: var(--text-muted);"></span>
+                                </div>
+                                <button class="session-btn" id="b2-session-btn" title="View Market Sessions" style="display: none; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: 4px; transition: all 0.2s;"><i class="fa-solid fa-clock"></i></button>
+                            </div>
+                            <div class="price-row">
+                                <div class="price-box bid-box">
+                                    <span class="label">BID</span>
+                                    <span class="price-value" id="b2-bid">-</span>
+                                </div>
+                                <div class="price-box ask-box">
+                                    <span class="label">ASK</span>
+                                    <span class="price-value" id="b2-ask">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Spread Indicators -->
+                    <div class="spread-indicator-card">
+                        <div class="spread-indicator-header">
+                            <h3 class="indicator-title"><i class="fa-solid fa-chart-bar"></i> Live Spread Matrix</h3>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <div id="fair-value-before-container" style="display: none; align-items: baseline; gap: 6px;">
+                                    <span class="spread-label" style="color: var(--color-success); font-size: 11px;">BEFORE WAR FV <small style="opacity:0.7">(UKO/USO)</small></span>
+                                    <span class="spread-val font-mono" id="spread-fair-value-before" style="color: var(--color-success); font-size: 18px; line-height: 1;">-</span>
+                                </div>
+                                <div id="fair-value-container" style="display: none; align-items: baseline; gap: 6px;">
+                                    <span class="spread-label" style="color: var(--color-warning); font-size: 11px;">FAIR VALUE <small style="opacity:0.7" id="fair-value-label">(Gold DTE Regression)</small></span>
+                                    <span class="spread-val font-mono" id="spread-fair-value" style="color: var(--color-warning); font-size: 18px; line-height: 1;">-</span>
+                                </div>
+                                <button id="btn-refresh-history" class="btn btn-secondary btn-icon btn-xs" title="Refresh stats" disabled>
+                                    <i class="fa-solid fa-rotate"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="spread-matrix">
+                            <div class="spread-item">
+                                <span class="spread-label">BID SPREAD <small>(Sell 1 & Buy 2)</small></span>
+                                <span class="spread-val font-mono" id="spread-bid">-</span>
+                                
+                                <div class="spread-history-stats">
+                                    <div class="hist-stat-row">
+                                        <span class="hist-label">Best Bid 24h:</span>
+                                        <span class="hist-val font-mono text-success" id="hist-24h-bid">-</span>
+                                    </div>
+                                    <div class="hist-stat-row">
+                                        <span class="hist-label">Best Bid 3D:</span>
+                                        <span class="hist-val font-mono text-success" id="hist-3d-bid">-</span>
+                                    </div>
+                                    <div class="hist-stat-row">
+                                        <span class="hist-label">Best Bid 7D:</span>
+                                        <span class="hist-val font-mono text-success" id="hist-7d-bid">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="spread-divider"></div>
+                            <div class="spread-item">
+                                <span class="spread-label">ASK SPREAD <small>(Buy 1 & Sell 2)</small></span>
+                                <span class="spread-val font-mono" id="spread-ask">-</span>
+                                
+                                <div class="spread-history-stats">
+                                    <div class="hist-stat-row">
+                                        <span class="hist-label">Best Ask 24h:</span>
+                                        <span class="hist-val font-mono text-danger" id="hist-24h-ask">-</span>
+                                    </div>
+                                    <div class="hist-stat-row">
+                                        <span class="hist-label">Best Ask 3D:</span>
+                                        <span class="hist-val font-mono text-danger" id="hist-3d-ask">-</span>
+                                    </div>
+                                    <div class="hist-stat-row">
+                                        <span class="hist-label">Best Ask 7D:</span>
+                                        <span class="hist-val font-mono text-danger" id="hist-7d-ask">-</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="spread-formula-hint">
+                            Formula: Bid Spread = Bid<sub>1</sub> - Ask<sub>2</sub> &nbsp;|&nbsp; Ask Spread = Ask<sub>1</sub> - Bid<sub>2</sub>
+                        </div>
+                        
+                        <!-- Historical Spread Chart -->
+                        <div class="chart-container" style="margin-top: 1.5rem; height: 250px; width: 100%; position: relative;">
+                            <canvas id="spreadChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Place Limit Order Section -->
+                    <div class="order-form-container">
+                        <h3><i class="fa-solid fa-clipboard-check"></i> Create Spread Limit Order</h3>
+                        
+                        <div class="order-direction-toggle">
+                            <button id="dir-sell" class="btn-toggle" data-dir="sell">
+                                <i class="fa-solid fa-square-minus"></i> SELL SPREAD <small>(Sell 1, Buy 2)</small>
+                            </button>
+                            <button id="dir-buy" class="btn-toggle active" data-dir="buy">
+                                <i class="fa-solid fa-cart-arrow-down"></i> BUY SPREAD <small>(Buy 1, Sell 2)</small>
+                            </button>
+                        </div>
+
+                        <div class="order-inputs-grid">
+                            <div class="form-group">
+                                <label>Volume Broker 1 (Lots)</label>
+                                <input type="number" id="order-vol1" placeholder="0.10" step="0.01" min="0.01" value="0.10">
+                            </div>
+                            <div class="form-group">
+                                <label>Volume Broker 2 (Lots)</label>
+                                <input type="number" id="order-vol2" placeholder="0.10" step="0.01" min="0.01" value="0.10">
+                            </div>
+                            <div class="form-group">
+                                <label>Target Spread Trigger</label>
+                                <input type="number" id="order-target" placeholder="e.g. 0.50" step="0.00001">
+                            </div>
+                        </div>
+
+                        <!-- Lot Size Recommendation Section -->
+                        <div id="lot-recommendation-container" class="lot-recommendation-wrapper hidden">
+                            <div class="lot-recommendation-card">
+                                <span class="rec-badge"><i class="fa-solid fa-wand-magic-sparkles"></i> Recommendation</span>
+                                <span class="rec-text" id="lot-recommendation-text">Recommended minimum lots: -</span>
+                                <button id="btn-apply-rec" class="btn btn-secondary btn-xs">Auto-fill</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group dry-run-wrapper">
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="order-dry-run" checked>
+                                <span class="checkmark"></span>
+                                <i class="fa-solid fa-shield-halved text-accent"></i> Dry Run Mode (Simulated Order Execution)
+                            </label>
+                        </div>
+
+                        <button id="btn-submit-order" class="btn btn-accent btn-large" disabled>
+                            <i class="fa-solid fa-paper-plane"></i> Place Spread Order
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Panel: Active Orders & Logs -->
+            <section class="panel panel-orders">
+                <!-- Active Orders list -->
+                <div class="sub-panel order-list-subpanel">
+                    <div class="panel-header">
+                        <h2><i class="fa-solid fa-list-check"></i> Active Trigger Orders</h2>
+                    </div>
+                    <div class="panel-body list-body">
+                        <div id="orders-placeholder" class="list-placeholder">
+                            <i class="fa-solid fa-circle-info"></i>
+                            <p>No active pending orders. Create one to begin.</p>
+                        </div>
+                        <div id="orders-container" class="orders-list-wrapper hidden">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live logs -->
+                <div class="sub-panel log-subpanel">
+                    <div class="panel-header">
+                        <h2><i class="fa-solid fa-terminal"></i> Terminal Event Log</h2>
+                        <button id="btn-clear-logs" class="btn btn-text" title="Clear console"><i class="fa-solid fa-trash-can"></i></button>
+                    </div>
+                    <div class="panel-body terminal-body" id="log-terminal">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <!-- Modal for Market Sessions -->
+    <div id="session-modal" class="modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px); transition: all 0.3s;">
+        <div class="modal-content" style="background-color: var(--card-bg); margin: 15% auto; padding: 20px; border: 1px solid var(--border-color); width: 80%; max-width: 450px; border-radius: 12px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; color: var(--text-white);"><i class="fa-solid fa-clock text-accent"></i> Market Session Hours</h3>
+                <span class="close-modal" id="close-session-modal" style="color: var(--text-muted); float: right; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 1; transition: color 0.2s;">&times;</span>
+            </div>
+            <div style="margin-bottom: 10px; font-size: 0.9rem; color: var(--text-muted);">
+                Symbol: <strong id="session-modal-symbol" class="text-white" style="font-size: 1rem; color: #fff;">-</strong> (<span id="session-modal-broker">Broker 1</span>)
+            </div>
+            <div id="session-modal-body" style="font-family: monospace; font-size: 0.9rem; line-height: 1.6; background-color: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); color: #fff;">
+                <!-- Sessions list will go here -->
+            </div>
+            <div style="margin-top: 15px; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: flex-start; gap: 6px; line-height: 1.4;">
+                <i class="fa-solid fa-triangle-exclamation text-warning" style="margin-top: 2px; color: var(--warning);"></i>
+                <span>Trading is automatically suspended during the 5 minutes following market open and 5 minutes preceding market close.</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="toast-container"></div>
+    <script src="app.js?v=1.4"></script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+# Environment Variables
+.env
+
+# Credentials and Tokens
+credentials.json
+lib_credentials.json
+lib_token.json
+
+# Cache and Temp Files
+temp.json
+temp.txt
+*.log
+*.csv
+.sbi_cache.json
+.deribit_logs_cache.json
+
+# Python
+__pycache__/
+*.pyc
+
+# IDEs and OS files
+.vscode/
+.idea/
+.DS_Store
+desktop.ini
+
+# Scratch and Internal AI folders
+scratch/
+.claude/
+.gemini/
+.antigravitycli/

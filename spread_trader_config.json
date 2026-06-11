@@ -1,0 +1,96 @@
+{
+    "broker1": {
+        "path": "C:\\MT5_Broker2\\terminal64.exe",
+        "accountId": "mts"
+    },
+    "broker2": {
+        "path": "C:\\MT5_Broker1\\terminal64.exe",
+        "accountId": "vantage"
+    },
+    "favorites": [
+        {
+            "id": "ce0c857a",
+            "name": "USOUSD.sc vs NYX.MCLEU6",
+            "broker1": {
+                "path": "C:\\MT5_Broker1\\terminal64.exe",
+                "accountId": "vantage",
+                "symbol": "USOUSD.sc"
+            },
+            "broker2": {
+                "path": "C:\\MT5_Broker2\\terminal64.exe",
+                "accountId": "mts",
+                "symbol": "NYX.MCLEU6"
+            }
+        },
+        {
+            "id": "d9c3106a",
+            "name": "UKOUSD.sc vs USOUSD.sc",
+            "broker1": {
+                "path": "C:\\MT5_Broker1\\terminal64.exe",
+                "accountId": "vantage",
+                "symbol": "UKOUSD.sc"
+            },
+            "broker2": {
+                "path": "C:\\MT5_Broker1\\terminal64.exe",
+                "accountId": "vantage",
+                "symbol": "USOUSD.sc"
+            }
+        },
+        {
+            "id": "c37047d3",
+            "name": "CMX.MGCG7 vs XAUUSD.sc",
+            "broker1": {
+                "path": "C:\\MT5_Broker2\\terminal64.exe",
+                "accountId": "mts",
+                "symbol": "CMX.MGCG7"
+            },
+            "broker2": {
+                "path": "C:\\MT5_Broker1\\terminal64.exe",
+                "accountId": "vantage",
+                "symbol": "XAUUSD.sc"
+            }
+        },
+        {
+            "id": "3bb84be2",
+            "name": "TFX.USDM26 vs TFX.USDU26",
+            "broker1": {
+                "path": "C:\\MT5_Broker2\\terminal64.exe",
+                "accountId": "acc3",
+                "symbol": "TFX.USDM26"
+            },
+            "broker2": {
+                "path": "C:\\MT5_Broker2\\terminal64.exe",
+                "accountId": "acc3",
+                "symbol": "TFX.USDU26"
+            }
+        },
+        {
+            "id": "9aee021e",
+            "name": "TFX.S50M26 vs TFX.S50U26",
+            "broker1": {
+                "path": "C:\\MT5_Broker2\\terminal64.exe",
+                "accountId": "acc3",
+                "symbol": "TFX.S50M26"
+            },
+            "broker2": {
+                "path": "C:\\MT5_Broker2\\terminal64.exe",
+                "accountId": "acc3",
+                "symbol": "TFX.S50U26"
+            }
+        },
+        {
+            "id": "c7c88439",
+            "name": "TFX.S50U26 vs TFX.S50Z26",
+            "broker1": {
+                "path": "C:\\MT5_Broker2\\terminal64.exe",
+                "accountId": "acc3",
+                "symbol": "TFX.S50U26"
+            },
+            "broker2": {
+                "path": "C:\\MT5_Broker2\\terminal64.exe",
+                "accountId": "acc3",
+                "symbol": "TFX.S50Z26"
+            }
+        }
+    ]
+}
