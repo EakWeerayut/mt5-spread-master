@@ -45,6 +45,14 @@ const els = {
     spreadFairValue: document.getElementById("spread-fair-value"),
     spreadFairValueBefore: document.getElementById("spread-fair-value-before"),
     fairValueLabel: document.getElementById("fair-value-label"),
+    spreadEdge: document.getElementById("spread-edge"),
+    spreadEdgePct: document.getElementById("spread-edge-pct"),
+    edgeContainer: document.getElementById("edge-container"),
+    convContainer: document.getElementById("conv-container"),
+    spreadConv: document.getElementById("spread-conv"),
+    edgePctCard: document.getElementById("edge-pct-card"),
+    actualPositionCard: document.getElementById("actual-position-card"),
+    btnRefreshPosition: document.getElementById("btn-refresh-position"),
 
     dirBuy: document.getElementById("dir-buy"),
     dirSell: document.getElementById("dir-sell"),
@@ -384,20 +392,87 @@ async function pollData() {
             els.spreadBid.textContent = "-";
         }
 
-        if (data.spread.fair_value !== undefined && data.spread.fair_value !== null) {
-            els.spreadFairValue.textContent = formatVal(data.spread.fair_value);
-            els.spreadFairValue.parentElement.style.display = 'flex';
-            if (data.spread.asset_type === 'oil') {
-                els.fairValueLabel.textContent = '(Oil DTE Regression)';
-            } else if (data.spread.asset_type === 'uko_uso') {
-                els.fairValueLabel.textContent = '(UKO/USO Average)';
-            } else {
-                els.fairValueLabel.textContent = '(Gold DTE Regression)';
+        const isGoldApx = data.spread.asset_type === 'gold_apx';
+
+        // 1. Fair Value
+        if (!isGoldApx && data.spread.fair_value !== null && data.spread.fair_value !== undefined) {
+            if (els.spreadFairValue) {
+                els.spreadFairValue.textContent = formatVal(data.spread.fair_value);
+                els.spreadFairValue.parentElement.style.display = 'flex';
+            }
+            if (els.fairValueLabel) {
+                if (data.spread.asset_type === 'oil') els.fairValueLabel.textContent = '(Oil DTE Regression)';
+                else if (data.spread.asset_type === 'uko_uso') els.fairValueLabel.textContent = '(UKO/USO Average)';
+                else els.fairValueLabel.textContent = '(Gold DTE Regression)';
             }
         } else {
-            els.spreadFairValue.textContent = "-";
-            els.spreadFairValue.parentElement.style.display = 'none';
+            if (els.spreadFairValue && els.spreadFairValue.parentElement) {
+                els.spreadFairValue.parentElement.style.display = 'none';
+            }
         }
+
+        // 2. Before War FV
+        if (!isGoldApx && data.spread.fair_value_before !== undefined && data.spread.fair_value_before !== null) {
+            if (els.spreadFairValueBefore) {
+                els.spreadFairValueBefore.textContent = formatVal(data.spread.fair_value_before);
+                els.spreadFairValueBefore.parentElement.style.display = 'flex';
+            }
+        } else {
+            if (els.spreadFairValueBefore && els.spreadFairValueBefore.parentElement) {
+                els.spreadFairValueBefore.parentElement.style.display = 'none';
+            }
+        }
+
+        // 3. Edge
+        if (!isGoldApx && els.edgeContainer && data.spread.edge !== null && data.spread.edge !== undefined) {
+            els.spreadEdge.textContent = Number(data.spread.edge).toFixed(1);
+            els.spreadEdge.style.color = data.spread.edge > 0 ? "var(--color-success)" : "var(--color-danger)";
+            els.edgeContainer.style.display = 'flex';
+            if (els.spreadEdgePct) els.spreadEdgePct.textContent = data.spread.edge_pct ? `(${Number(data.spread.edge_pct).toFixed(1)}%/yr)` : "";
+        } else {
+            if (els.edgeContainer) els.edgeContainer.style.display = 'none';
+        }
+
+        // 4. Conv Date
+        if (!isGoldApx && els.convContainer && data.spread.conv_date) {
+            els.spreadConv.textContent = `${data.spread.conv_date} (${formatVal(data.spread.conv_days)}d)`;
+            els.convContainer.style.display = 'flex';
+        } else {
+            if (els.convContainer) els.convContainer.style.display = 'none';
+        }
+
+        const isApxPair = (data.spread.asset_type === 'gold_apx');
+
+        // Series cards: show only for a spread pair (apx / gold / oil), and load the right type.
+        // Debounced 3s so a manual button click isn't fought by a stale asset_type mid-switch.
+        const seriesType = { gold_apx: 'apx', gold: 'gold', oil: 'oil' }[data.spread.asset_type];
+        const seriesBar = document.getElementById("cmx-apx-series-bar");
+        if (seriesBar && Date.now() - lastSeriesLoadTs > 3000) {
+            if (seriesType) {
+                const notShown = seriesBar.style.display === "none" || seriesBar.classList.contains("hidden") || !seriesBar.querySelector(".series-card");
+                if (notShown || currentSeriesType !== seriesType) loadCmxApxSeries(seriesType, false);
+            } else {
+                seriesBar.style.display = "none";
+                seriesBar.classList.add("hidden");
+            }
+        }
+
+        if (els.actualPositionCard) {
+            if (isApxPair) {
+                els.actualPositionCard.style.display = 'block';
+                const now = Date.now();
+                if (!cache.lastPosFetch || now - cache.lastPosFetch > 10000) {
+                    cache.lastPosFetch = now;
+                    loadActualPosition();
+                }
+            } else {
+                els.actualPositionCard.style.display = 'none';
+            }
+        }
+        
+        // NOTE: series-card live Edge is updated solely by startCmxApxEdgePolling()
+        // (server-computed edge/min/max/position). The old client-side recompute here
+        // used a wrong formula and fought the poller, causing the value to flicker.
 
         if (data.spread.fair_value_before !== undefined && data.spread.fair_value_before !== null) {
             els.spreadFairValueBefore.textContent = formatVal(data.spread.fair_value_before);
@@ -714,6 +789,85 @@ async function submitOrder() {
     }
 }
 
+
+
+// Actual open-position panel (APX vs CMX.MGC)
+async function loadActualPosition() {
+    const empty = document.getElementById("actual-pos-empty");
+    const body = document.getElementById("actual-pos-body");
+    const syms = document.getElementById("actual-pos-syms");
+    if (!empty || !body) return;
+    try {
+        const res = await fetch("/api/apx_position", { method: "POST" });
+        const d = await res.json();
+        if (syms && d.mgc_symbol && d.apx_symbol) syms.textContent = `(${d.mgc_symbol} / ${d.apx_symbol})`;
+
+        if (d.status !== "ok" || !d.has_position) {
+            empty.textContent = (d.status !== "ok" && d.message) ? d.message : "No open position.";
+            empty.style.display = "block";
+            body.style.display = "none";
+            return;
+        }
+        empty.style.display = "none";
+        body.style.display = "block";
+
+        const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+        const money = (v) => (v === null || v === undefined) ? "-" : (v >= 0 ? "+" : "") + formatVal(v);
+        const colorEl = (id, v) => { const e = document.getElementById(id); if (e) e.style.color = (v >= 0) ? "var(--color-success)" : "var(--color-danger)"; };
+
+        set("ap-lots", `${d.matched_lots} / ${d.oz} oz`);
+        set("ap-entry", d.entry_spread);
+        set("ap-current", d.current_spread);
+        set("ap-swap", money(d.swap_paid));
+        set("ap-comm", money(d.commission_entry));
+        set("ap-float", money(d.floating_pnl)); colorEl("ap-float", d.floating_pnl);
+        set("ap-netnow", money(d.net_now)); colorEl("ap-netnow", d.net_now);
+        set("ap-dte", d.dte);
+        set("ap-remswap", money(d.remaining_swap));
+        set("ap-projnet", money(d.projected_total_net)); colorEl("ap-projnet", d.projected_total_net);
+    } catch (err) {
+        empty.textContent = "Failed to load position data.";
+        empty.style.display = "block";
+        body.style.display = "none";
+    }
+}
+
+// EDGE% best/worst table (24h / 3D / 7D / All) in the Live Spread Matrix
+async function loadEdgeStats() {
+    try {
+        const res = await fetch("/api/apx_edge_stats");
+        const d = await res.json();
+        if (!d || d.error) return;
+        const setPct = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = (v === null || v === undefined) ? "-" : `${v}%`; };
+        const setN = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = (v === undefined || v === null) ? "-" : v; };
+        ["24h", "3D", "7D", "All"].forEach(w => {
+            if (d[w]) {
+                setPct(`ep-${w}-b`, d[w].best);
+                setPct(`ep-${w}-w`, d[w].worst);
+                setN(`ep-${w}-n`, d[w].n);
+            }
+        });
+        const epNow = document.getElementById("ep-now");
+        if (epNow && d.current !== undefined && d.current !== null) {
+            epNow.textContent = `${d.current}%`;
+            epNow.style.color = d.current > 0 ? 'var(--color-success)' : 'var(--color-danger)';
+        }
+    } catch (e) { /* silent */ }
+}
+
+// Collapse/expand the combined right panel horizontally (to the right)
+function toggleRightPanel() {
+    const grid = document.getElementById("main-grid");
+    if (!grid) return;
+    const collapsed = grid.classList.toggle("hide-right");
+    // Direct style fallback so it works regardless of CSS specificity
+    const panel = document.getElementById("right-panel");
+    if (panel) panel.style.display = collapsed ? "none" : "flex";
+    grid.style.gridTemplateColumns = collapsed ? "320px 1fr" : "";
+    const expandBtn = document.getElementById("btn-expand-right");
+    if (expandBtn) expandBtn.style.display = collapsed ? "flex" : "none";
+}
+
 // Event Listeners
 function setupEventListeners() {
     els.btnConnect.addEventListener("click", initializeTerminals);
@@ -799,10 +953,37 @@ function setupEventListeners() {
     if (els.btnRefreshHistory) {
         els.btnRefreshHistory.addEventListener("click", loadHistoryStats);
     }
+    if (els.btnRefreshPosition) {
+        els.btnRefreshPosition.addEventListener("click", () => { cache.lastPosFetch = Date.now(); loadActualPosition(); });
+    }
 
     // Set up autocomplete
     setupAutocomplete(els.symbol1, els.s1Recs, "broker1");
     setupAutocomplete(els.symbol2, els.s2Recs, "broker2");
+
+    [["btn-series-apx", "apx"], ["btn-series-gold", "gold"], ["btn-series-oil", "oil"]].forEach(([id, t]) => {
+        const b = document.getElementById(id);
+        if (b) b.addEventListener("click", () => loadCmxApxSeries(t, true));
+    });
+    // UKO/USO is a plain pair (no futures series) - just load it directly
+    const btnUkoUso = document.getElementById("btn-series-ukouso");
+    if (btnUkoUso) btnUkoUso.addEventListener("click", () => loadFavoritePair({
+        name: "UKOUSD.sc vs USOUSD.sc",
+        broker1: { path: "C:\\MT5_Broker1\\terminal64.exe", accountId: "vantage", symbol: "UKOUSD.sc" },
+        broker2: { path: "C:\\MT5_Broker1\\terminal64.exe", accountId: "vantage", symbol: "USOUSD.sc" }
+    }));
+    
+    const btnToggleRight = document.getElementById("btn-toggle-right");
+    if (btnToggleRight) {
+        btnToggleRight.addEventListener("click", () => {
+            const grid = document.getElementById("main-grid");
+            if (grid) {
+                grid.classList.toggle("hide-right");
+                const isHidden = grid.classList.contains("hide-right");
+                btnToggleRight.innerHTML = isHidden ? '<i class="fa-solid fa-angles-left"></i> Show Sidebar' : '<i class="fa-solid fa-angles-right"></i> Toggle Sidebar';
+            }
+        });
+    }
 }
 
 // Initialization on load
@@ -941,28 +1122,221 @@ async function loadFavoritePair(fav) {
     // Connect terminals
     await initializeTerminals();
     
-    // Polling check loop
-    const maxAttempts = 15;
-    let attempts = 0;
+    const executeLoad = async () => {
+        console.log("Both terminals connected! Subscribing to favorite symbols...");
+        els.symbol1.value = fav.broker1.symbol;
+        els.symbol2.value = fav.broker2.symbol;
+        
+        await subscribeSymbol("broker1", fav.broker1.symbol);
+        await subscribeSymbol("broker2", fav.broker2.symbol);
+        
+        loadHistoryStats();
+        pollData(); // fetch live data immediately
+    };
     
-    const checkInterval = setInterval(async () => {
-        attempts++;
-        if (cache.broker1.connected && cache.broker2.connected) {
-            clearInterval(checkInterval);
-            console.log("Both terminals connected! Subscribing to favorite symbols...");
-            
-            els.symbol1.value = fav.broker1.symbol;
-            els.symbol2.value = fav.broker2.symbol;
-            
-            await subscribeSymbol("broker1", fav.broker1.symbol);
-            await subscribeSymbol("broker2", fav.broker2.symbol);
-            
-            loadHistoryStats();
-        } else if (attempts >= maxAttempts) {
-            clearInterval(checkInterval);
-            console.warn("Connection timeout while loading favorite.");
+    if (cache.broker1.connected && cache.broker2.connected) {
+        executeLoad();
+    } else {
+        // Polling check loop
+        const maxAttempts = 15;
+        let attempts = 0;
+        
+        const checkInterval = setInterval(async () => {
+            attempts++;
+            if (cache.broker1.connected && cache.broker2.connected) {
+                clearInterval(checkInterval);
+                executeLoad();
+            } else if (attempts >= maxAttempts) {
+                clearInterval(checkInterval);
+                console.warn("Connection timeout while loading favorite.");
+            }
+        }, 1000);
+    }
+}
+
+let cmxApxEdgeInterval = null;
+let cmxApxRenderedSyms = [];
+
+function fmtEdge(v) { return (v !== undefined && v !== null) ? v.toFixed(1) : "-"; }
+
+// Update a single card's live values (edge / position / min / max / conv) by id
+function applyCmxApxValues(item) {
+    const sym = item.symbol || item;
+    const key = sym.replace('.', '-');
+    const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+
+    const p = item.percentile;
+    // Edge & %Edge are colored by percentile: red when the spread sits below fair (P<50)
+    const sigColor = (p === undefined || p === null) ? 'var(--text-muted)'
+        : (p < 50 ? 'var(--color-danger)' : 'var(--color-success)');
+    // 1. %Edge of current price (prominent, 1 decimal)
+    const epEl = document.getElementById(`edgepct-${key}`);
+    if (epEl) {
+        const v = item.edge_pct;
+        epEl.textContent = (v === undefined || v === null) ? '-' : `${v.toFixed(1)}%`;
+        epEl.style.color = sigColor;
+    }
+    const eEl = document.getElementById(`edge-${key}`);
+    if (eEl) { eEl.textContent = fmtEdge(item.edge); eEl.style.color = sigColor; }
+    // 2. Edge of Fair Value ($ + %, 1 decimal) - kept white (reference, not a signal)
+    set(`edgefv-${key}`, fmtEdge(item.edge_fv));
+    set(`edgefvpct-${key}`, (item.edge_fv_pct !== undefined && item.edge_fv_pct !== null) ? item.edge_fv_pct.toFixed(1) : '-');
+    // Percentile (P50 = on the fair-value line). Higher = spread richer than fair = more edge.
+    const pxxEl = document.getElementById(`pxx-${key}`);
+    if (pxxEl) {
+        if (p === undefined || p === null) {
+            pxxEl.textContent = '-';
+            pxxEl.style.color = 'var(--text-muted)';
+        } else {
+            pxxEl.textContent = `${Math.round(p)}%`;
+            pxxEl.style.color = p >= 66 ? 'var(--color-success)' : (p >= 33 ? 'var(--color-warning)' : 'var(--color-danger)');
         }
-    }, 1000);
+    }
+    set(`convdate-${key}`, item.conv_date || '-');
+    set(`convdays-${key}`, (item.conv_days !== undefined && item.conv_days !== null) ? `(${item.conv_days.toFixed(1)}d)` : '');
+}
+
+// Build all series cards. `type` is stamped on each card so a click always uses the
+// right pair config even if the global currentSeriesType changed mid-transition.
+function renderCmxApxCards(series, type) {
+    const bar = document.getElementById("cmx-apx-series-bar");
+    bar.innerHTML = "";
+    bar.classList.remove("hidden");
+    bar.style.display = "flex";
+    bar.style.flexDirection = "column";
+    bar.style.gap = "10px";
+    bar.style.marginTop = "10px";
+
+    series.forEach(item => {
+        const sym = item.symbol || item;
+        const key = sym.replace('.', '-');
+
+        const card = document.createElement("div");
+        card.className = "series-card";
+        card.dataset.sym = sym;
+        card.dataset.seriesType = type;
+        card.style.cssText = "display:flex; justify-content:space-between; align-items:center; padding:10px 15px; background:var(--bg-panel); border:1px solid var(--border-color); border-radius:8px; cursor:pointer; transition:all 0.2s ease;";
+        card.onmouseenter = () => { if (!card.classList.contains('active-card')) { card.style.borderColor = "var(--color-primary)"; card.style.background = "rgba(16,185,129,0.05)"; } };
+        card.onmouseleave = () => { if (!card.classList.contains('active-card')) { card.style.borderColor = "var(--border-color)"; card.style.background = "var(--bg-panel)"; } };
+        card.onclick = () => selectCmxApxSeries(sym, card, type);
+
+        const leftDiv = document.createElement("div");
+        leftDiv.style.cssText = "background:#fff; color:#000; padding:5px 10px; font-weight:bold; border-radius:4px;";
+        leftDiv.textContent = sym;
+
+        // Fixed-width cells (right-aligned) so values don't shift the layout as they update
+        const rightDiv = document.createElement("div");
+        rightDiv.style.cssText = "display:flex; align-items:center; gap:16px; font-size:12px; color:var(--text-muted); font-family:'JetBrains Mono',monospace;";
+        const cell = (w) => `display:inline-block; width:${w}px; text-align:right;`;
+        const big = "font-size:22px; font-weight:700;";
+        rightDiv.innerHTML =
+            `<div style="${cell(92)}"><div style="font-size:9px; letter-spacing:0.5px;">%EDGE /yr</div><strong id="edgepct-${key}" style="${big}">-</strong></div>` +
+            `<div style="${cell(84)}"><div style="font-size:9px;">EDGE $/oz</div><strong id="edge-${key}" style="${big}">-</strong></div>` +
+            `<div style="${cell(66)}"><div style="font-size:9px;">PCTILE</div><strong id="pxx-${key}" style="${big}">-</strong></div>` +
+            `<div style="${cell(150)}"><div style="font-size:9px;">FAIR VALUE ($, %)</div><strong id="edgefv-${key}" style="${big} color:#fff;">-</strong> <small style="color:#fff;">(<span id="edgefvpct-${key}">-</span>%)</small></div>` +
+            `<div style="${cell(155)}"><div style="font-size:9px;">CONV (last day)</div><strong id="convdate-${key}" style="color:#fff; font-size:14px;">-</strong> <small id="convdays-${key}"></small></div>`;
+
+        card.appendChild(leftDiv);
+        card.appendChild(rightDiv);
+        bar.appendChild(card);
+
+        applyCmxApxValues(item);
+    });
+
+    cmxApxRenderedSyms = series.map(it => (it.symbol || it));
+}
+
+let currentSeriesType = 'apx';
+let lastSeriesLoadTs = 0;
+// Per-type favorite builders. The futures contract slots into broker1 (apx/gold) or
+// broker2 (oil); the spot leg is fixed. XAUUSD.sc/USOUSD.sc are on Vantage.
+const SPREAD_PAIRS = {
+    apx:  { name: c => `${c} vs APX.AUP10`,
+            broker1: c => ({ path: "C:\\MT5_Broker2\\terminal64.exe", accountId: "mts", symbol: c }),
+            broker2: () => ({ path: "C:\\MT5_Broker2\\terminal64.exe", accountId: "mts", symbol: "APX.AUP10" }) },
+    gold: { name: c => `${c} vs XAUUSD.sc`,
+            broker1: c => ({ path: "C:\\MT5_Broker2\\terminal64.exe", accountId: "mts", symbol: c }),
+            broker2: () => ({ path: "C:\\MT5_Broker1\\terminal64.exe", accountId: "vantage", symbol: "XAUUSD.sc" }) },
+    oil:  { name: c => `USOUSD.sc vs ${c}`,
+            broker1: () => ({ path: "C:\\MT5_Broker1\\terminal64.exe", accountId: "vantage", symbol: "USOUSD.sc" }),
+            broker2: c => ({ path: "C:\\MT5_Broker2\\terminal64.exe", accountId: "mts", symbol: c }) },
+};
+
+function highlightSeriesCard(bar, sym) {
+    if (!sym) return;
+    const c = bar.querySelector(`.series-card[data-sym="${sym}"]`);
+    if (c) { c.classList.add("active-card"); c.style.borderColor = "var(--color-primary)"; c.style.background = "rgba(16,185,129,0.1)"; }
+}
+
+function startCmxApxEdgePolling() {
+    if (cmxApxEdgeInterval) clearInterval(cmxApxEdgeInterval);
+    cmxApxEdgeInterval = setInterval(async () => {
+        const bar = document.getElementById("cmx-apx-series-bar");
+        if (!bar || bar.classList.contains("hidden") || bar.style.display === "none") {
+            clearInterval(cmxApxEdgeInterval);
+            cmxApxEdgeInterval = null;
+            return;
+        }
+        try {
+            const res = await fetch(`/api/cmx_apx_series?type=${currentSeriesType}`);
+            if (!res.ok) return;
+            const series = await res.json();
+            const syms = series.map(it => (it.symbol || it));
+            const changed = syms.length !== cmxApxRenderedSyms.length || syms.some((s, i) => s !== cmxApxRenderedSyms[i]);
+            if (changed) {
+                const activeEl = bar.querySelector(".active-card");
+                const activeSym = activeEl ? activeEl.dataset.sym : null;
+                renderCmxApxCards(series, currentSeriesType);
+                highlightSeriesCard(bar, activeSym);
+            } else {
+                series.forEach(applyCmxApxValues);
+            }
+        } catch (e) { /* silent */ }
+    }, 1500);
+}
+
+async function loadCmxApxSeries(type = 'apx', autoSelect = true) {
+    currentSeriesType = type;
+    lastSeriesLoadTs = Date.now();
+    try {
+        const res = await fetch(`/api/cmx_apx_series?type=${type}`);
+        if (res.ok) {
+            const series = await res.json();
+            renderCmxApxCards(series, type);
+            const bar = document.getElementById("cmx-apx-series-bar");
+            if (autoSelect && series.length > 0) {
+                const firstCard = bar.querySelector(".series-card");
+                selectCmxApxSeries(series[0].symbol || series[0], firstCard, type);
+            } else {
+                // Auto-shown for the active pair: highlight the current contract (either leg)
+                highlightSeriesCard(bar, els.symbol1 ? els.symbol1.value : null);
+                highlightSeriesCard(bar, els.symbol2 ? els.symbol2.value : null);
+            }
+            startCmxApxEdgePolling();
+        } else if (autoSelect) {
+            alert("Failed to load series. Please ensure server.py has been restarted.");
+        }
+    } catch (e) {
+        if (autoSelect) alert("Failed to connect to server. Please restart server.py.");
+    }
+}
+
+async function selectCmxApxSeries(contractSym, cardEl, type) {
+    lastSeriesLoadTs = Date.now();
+    currentSeriesType = type || currentSeriesType;
+    const bar = document.getElementById("cmx-apx-series-bar");
+    bar.querySelectorAll(".series-card").forEach(c => {
+        c.classList.remove("active-card");
+        c.style.borderColor = "var(--border-color)";
+        c.style.background = "var(--bg-panel)";
+    });
+    if (cardEl) {
+        cardEl.classList.add("active-card");
+        cardEl.style.borderColor = "var(--color-primary)";
+        cardEl.style.background = "rgba(16, 185, 129, 0.1)";
+    }
+    const cfg = SPREAD_PAIRS[type] || SPREAD_PAIRS[currentSeriesType] || SPREAD_PAIRS.apx;
+    loadFavoritePair({ name: cfg.name(contractSym), broker1: cfg.broker1(contractSym), broker2: cfg.broker2(contractSym) });
 }
 
 async function loadHistoryStats() {
@@ -974,6 +1348,11 @@ async function loadHistoryStats() {
         els.btnRefreshHistory.disabled = true;
         els.btnRefreshHistory.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     }
+    
+    // Clear old values visually
+    const clearEl = (id) => { const el = document.getElementById(id); if (el) el.textContent = "..."; };
+    ["hist-24h-bid", "hist-24h-ask", "hist-3d-bid", "hist-3d-ask", "hist-7d-bid", "hist-7d-ask"].forEach(clearEl);
+    ["ep-24h-b", "ep-24h-w", "ep-24h-n", "ep-3D-b", "ep-3D-w", "ep-3D-n", "ep-7D-b", "ep-7D-w", "ep-7D-n"].forEach(clearEl);
     
     try {
         const res = await fetch(`/api/history?symbol1=${encodeURIComponent(s1)}&symbol2=${encodeURIComponent(s2)}&_t=${Date.now()}`);
@@ -1007,12 +1386,19 @@ function renderHistoryStats(stats) {
         return Number(val).toFixed(2);
     };
     
-    if (els.hist24hBid) els.hist24hBid.textContent = formatValue(stats["24h"].best_bid);
-    if (els.hist24hAsk) els.hist24hAsk.textContent = formatValue(stats["24h"].best_ask);
-    if (els.hist3dBid) els.hist3dBid.textContent = formatValue(stats["3d"].best_bid);
-    if (els.hist3dAsk) els.hist3dAsk.textContent = formatValue(stats["3d"].best_ask);
-    if (els.hist7dBid) els.hist7dBid.textContent = formatValue(stats["7d"].best_bid);
-    if (els.hist7dAsk) els.hist7dAsk.textContent = formatValue(stats["7d"].best_ask);
+    // Best Bid/Ask show spread + (Edge $, %Edge) for the APX pair: "23.10 (8.5, 1.5%)"
+    const fmtSpread = (val, edge, edgePct) => {
+        if (val === null || val === undefined || isNaN(val)) return "-";
+        let txt = Number(val).toFixed(2);
+        if (edge !== undefined && edge !== null) txt += ` (${Number(edge).toFixed(1)}, ${edgePct}%)`;
+        return txt;
+    };
+    if (els.hist24hBid) els.hist24hBid.textContent = fmtSpread(stats["24h"].best_bid, stats["24h"].bid_edge, stats["24h"].bid_edge_pct);
+    if (els.hist3dBid) els.hist3dBid.textContent = fmtSpread(stats["3d"].best_bid, stats["3d"].bid_edge, stats["3d"].bid_edge_pct);
+    if (els.hist7dBid) els.hist7dBid.textContent = fmtSpread(stats["7d"].best_bid, stats["7d"].bid_edge, stats["7d"].bid_edge_pct);
+    if (els.hist24hAsk) els.hist24hAsk.textContent = fmtSpread(stats["24h"].best_ask, stats["24h"].ask_edge, stats["24h"].ask_edge_pct);
+    if (els.hist3dAsk) els.hist3dAsk.textContent = fmtSpread(stats["3d"].best_ask, stats["3d"].ask_edge, stats["3d"].ask_edge_pct);
+    if (els.hist7dAsk) els.hist7dAsk.textContent = fmtSpread(stats["7d"].best_ask, stats["7d"].ask_edge, stats["7d"].ask_edge_pct);
 }
 
 let spreadChartInstance = null;
@@ -1068,9 +1454,8 @@ function renderSpreadChart(chartData) {
     const hasFv = chartData.some(d => d.fair_value !== undefined);
     if (hasFv) {
         const fvData = chartData.map(d => d.fair_value !== undefined ? d.fair_value : null);
-        const labelText = els.fairValueLabel ? els.fairValueLabel.textContent : 'Fair Value';
         chartDatasets.push({
-            label: labelText,
+            label: 'Fair Value',
             data: fvData,
             borderColor: '#facc15', // --color-warning
             borderWidth: 1.5,

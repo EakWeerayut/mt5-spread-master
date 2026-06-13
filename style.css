@@ -150,6 +150,14 @@ body {
     gap: 15px;
     flex-grow: 1;
     min-height: 0; /* Important for flex-grow scrolling containers */
+    transition: grid-template-columns 0.3s ease;
+}
+
+.app-grid.hide-right {
+    grid-template-columns: 320px 1fr;
+}
+.app-grid.hide-right #right-panel {
+    display: none !important;
 }
 
 /* Panels */

@@ -26,6 +26,13 @@ SHORT_PREFIX = "CMX.MGC"         # dated futures, short leg
 SESSION_BARS = 6000              # ~20.8 days of M5 used to infer the current session schedule
 SAFE_BUFFER = 300                # 5-minute buffer at each session edge (matches live master)
 
+# --- Edge model parameters ---
+SWAP_RATE = 0.03                 # APX long annual swap (matches symbol_info.swap_long = -3.0%)
+SWAP_BASIS = 360                 # day-count for swap accrual (3%/360 per day)
+CONTRACT_OZ = 10                 # APX.AUP10 / CMX.MGC = 10 oz per lot
+COMM_PER_CONTRACT = 6.42         # CMX.MGC round-trip commission (3.21 x 2)
+COMM_PER_OZ = COMM_PER_CONTRACT / CONTRACT_OZ   # 0.642 $/oz fixed cost buffer
+
 
 def load_env():
     env = {}
@@ -83,6 +90,32 @@ def compute_sessions(times):
         day_sessions.append([start_t, prev_t + 300])
         sessions[str(wday)] = day_sessions
     return sessions
+
+
+def edge_pct_annualized(edge, S, N):
+    """Edge as annualized % of gold notional: normalize by price (S) and time (N days)."""
+    if not S or N is None or N < 1.0:
+        return None
+    return edge / S * 360.0 / N * 100.0
+
+
+def _edge_window_stats(pct_points):
+    """pct_points: list of (unix_ts, edge_pct). Returns best/worst over 24h/3D/7D/All."""
+    if not pct_points:
+        return None
+    latest = max(t for t, _ in pct_points)
+    out = {}
+    for label, days in [("24h", 1), ("3D", 3), ("7D", 7), ("All", 0)]:
+        cut = latest - days * 86400 if days else 0
+        vals = [p for t, p in pct_points if t >= cut]
+        if vals:
+            out[label] = {"best": round(max(vals), 3), "worst": round(min(vals), 3), "n": len(vals)}
+        else:
+            out[label] = {"best": None, "worst": None, "n": 0}
+    # current = most recent point
+    cur = max(pct_points, key=lambda x: x[0])[1]
+    out["current"] = round(cur, 3)
+    return out
 
 
 def is_time_in_safe_window(t_sec, sessions):
@@ -268,6 +301,7 @@ def get_chart_data():
         all_x.extend(tr['x'])
         all_y.extend(tr['y'])
 
+    reg_m, reg_c = None, None
     if len(all_x) > 1:
         n = len(all_x)
         sum_x, sum_y = sum(all_x), sum(all_y)
@@ -277,12 +311,18 @@ def get_chart_data():
         if denominator != 0:
             m = (n * sum_xy - sum_x * sum_y) / denominator
             c = (sum_y - m * sum_x) / n
+            reg_m, reg_c = m, c
             mean_y = sum_y / n
             ss_tot = sum((y - mean_y) ** 2 for y in all_y)
             ss_res = sum((y - (m * x + c)) ** 2 for x, y in zip(all_x, all_y))
             r2 = 1 - (ss_res / ss_tot) if ss_tot != 0 else 0
+            # convergence point: DTE where fair value crosses 0
+            dte0 = (-c / m) if m else 0.0
             with open(os.path.join(DATA_DIR, "regression.json"), "w") as f:
-                json.dump({"slope": m, "intercept": c, "r2": r2, "points": n}, f, indent=4)
+                json.dump({"slope": m, "intercept": c, "r2": r2, "points": n,
+                           "dte0": round(dte0, 3),
+                           "swap_rate": SWAP_RATE, "swap_basis": SWAP_BASIS,
+                           "comm_per_oz": COMM_PER_OZ}, f, indent=4)
             min_x, max_x = min(all_x), max(all_x)
             traces_dte.append({
                 'x': [max_x, min_x],
@@ -292,11 +332,151 @@ def get_chart_data():
                 'line': {'width': 0.8, 'color': '#facc15', 'dash': 'dash'}
             })
 
+    # --- Historical Edge(t) = Spread - S*swap/360*N(t) - commission, per oz ---
+    # N(t) = days from t until convergence (dte0, where fair value = 0), clamped >= 0.
+    traces_edge_time = []
+    traces_edge_dte = []
+    all_edge = []
+    all_edge_pct = []
+    if reg_m is not None:
+        dte0 = (-reg_c / reg_m) if reg_m else 0.0
+        for sym in sorted_syms:
+            times = sorted(spreads_by_sym[sym].keys())
+            xe_time, ye_time, dtes = [], [], []
+            for t in times:
+                spread = spreads_by_sym[sym][t]
+                dte = dte_by_sym[sym][t]
+                S = map_apx[t]['close']               # long-leg (APX) price pays the swap
+                N = max(dte - dte0, 0.0)               # days left to convergence
+                edge = spread - S * SWAP_RATE / SWAP_BASIS * N - COMM_PER_OZ
+                edge = round(edge, 2)
+                xe_time.append(datetime.fromtimestamp(t).strftime('%Y-%m-%d %H:%M:%S'))
+                ye_time.append(edge)
+                dtes.append(round(dte, 3))
+                all_edge.append(edge)
+                epct = edge_pct_annualized(edge, S, N)
+                if epct is not None:
+                    all_edge_pct.append((t, epct))
+            if xe_time:
+                traces_edge_time.append({'x': xe_time, 'y': ye_time, 'name': sym,
+                                         'mode': 'lines', 'type': 'scatter', 'line': {'width': 1.5}})
+                # Edge vs DTE (reversed countdown axis) for cross-contract comparison
+                order = sorted(range(len(dtes)), key=lambda i: dtes[i], reverse=True)
+                traces_edge_dte.append({'x': [dtes[i] for i in order],
+                                        'y': [ye_time[i] for i in order],
+                                        'name': sym, 'mode': 'lines', 'type': 'scatter',
+                                        'line': {'width': 1.5}})
+
+    # Break-even reference line (Edge = 0) + percentile context
+    edge_stats = None
+    if all_edge:
+        srt = sorted(all_edge)
+        def pct(p):
+            return round(srt[min(len(srt) - 1, int(p / 100.0 * len(srt)))], 2)
+        edge_stats = {"min": srt[0], "p25": pct(25), "median": pct(50),
+                      "p75": pct(75), "p90": pct(90), "max": srt[-1],
+                      "current": ye_time[-1] if traces_edge_time else None}
+
     return {
         "traces_dte": traces_dte,
         "traces_time": traces_time,
         "traces_calendar": traces_calendar,
+        "traces_edge_time": traces_edge_time,
+        "traces_edge_dte": traces_edge_dte,
+        "edge_stats": edge_stats,
+        "edge_pct_stats": _edge_window_stats(all_edge_pct),
     }
+
+
+def get_edge_stats():
+    """Lean computation of annualized Edge% best/worst over 24h/3D/7D/All.
+    Reads CSVs directly (no trace building) for the live master's comparison table."""
+    if not os.path.exists(DATA_DIR):
+        return {"error": "No historical data found."}
+    meta = load_meta()
+    reg_path = os.path.join(DATA_DIR, "regression.json")
+    if not os.path.exists(reg_path):
+        return {"error": "No regression model yet. Fetch data first."}
+    reg = json.load(open(reg_path))
+    m, c, dte0 = reg.get("slope"), reg.get("intercept"), reg.get("dte0", 0.0)
+    sw, bs, comm = reg.get("swap_rate", SWAP_RATE), reg.get("swap_basis", SWAP_BASIS), reg.get("comm_per_oz", COMM_PER_OZ)
+    if not m:
+        return {"error": "Invalid regression model."}
+
+    apx_csv = os.path.join(DATA_DIR, f"{LONG_SYM}.csv")
+    if not os.path.exists(apx_csv):
+        return {"error": f"{LONG_SYM} data missing."}
+    map_apx = {int(r['time']): r['close'] for r in pd.read_csv(apx_csv).to_dict('records')}
+    sessions_apx = meta.get(LONG_SYM, {}).get("sessions")
+
+    pct_points = []
+    for f in os.listdir(DATA_DIR):
+        if not (f.startswith(SHORT_PREFIX) and f.endswith('.csv')):
+            continue
+        sym = f[:-4]
+        exp = meta.get(sym, {}).get("expiration_time", 0)
+        if not exp:
+            continue
+        sessions_mgc = meta.get(sym, {}).get("sessions")
+        for r in pd.read_csv(os.path.join(DATA_DIR, f)).to_dict('records'):
+            t = int(r['time'])
+            if t not in map_apx:
+                continue
+            if not is_time_in_safe_window(t, sessions_apx) or not is_time_in_safe_window(t, sessions_mgc):
+                continue
+            dte = (exp - t) / 86400.0
+            if dte < 0:
+                continue
+            S = map_apx[t]
+            N = max(dte - dte0, 0.0)
+            edge = (r['close'] - S) - S * sw / bs * N - comm
+            epct = edge_pct_annualized(edge, S, N)
+            if epct is not None:
+                pct_points.append((t, epct))
+
+    stats = _edge_window_stats(pct_points)
+    return stats if stats else {"error": "No edge points."}
+
+
+def get_residuals():
+    """Sorted list of historical residuals = (actual_spread - fair_value).
+    Used to rank the current spread as a percentile where 0 (live == fair) maps to P50."""
+    if not os.path.exists(DATA_DIR):
+        return []
+    meta = load_meta()
+    reg_path = os.path.join(DATA_DIR, "regression.json")
+    if not os.path.exists(reg_path):
+        return []
+    reg = json.load(open(reg_path))
+    m, c = reg.get("slope"), reg.get("intercept")
+    if not m:
+        return []
+    apx_csv = os.path.join(DATA_DIR, f"{LONG_SYM}.csv")
+    if not os.path.exists(apx_csv):
+        return []
+    map_apx = {int(r['time']): r['close'] for r in pd.read_csv(apx_csv).to_dict('records')}
+    sessions_apx = meta.get(LONG_SYM, {}).get("sessions")
+    res = []
+    for f in os.listdir(DATA_DIR):
+        if not (f.startswith(SHORT_PREFIX) and f.endswith('.csv')):
+            continue
+        sym = f[:-4]
+        exp = meta.get(sym, {}).get("expiration_time", 0)
+        if not exp:
+            continue
+        sessions_mgc = meta.get(sym, {}).get("sessions")
+        for r in pd.read_csv(os.path.join(DATA_DIR, f)).to_dict('records'):
+            t = int(r['time'])
+            if t not in map_apx:
+                continue
+            if not is_time_in_safe_window(t, sessions_apx) or not is_time_in_safe_window(t, sessions_mgc):
+                continue
+            dte = (exp - t) / 86400.0
+            if dte < 0:
+                continue
+            res.append((r['close'] - map_apx[t]) - (m * dte + c))
+    res.sort()
+    return res
 
 
 if __name__ == "__main__":

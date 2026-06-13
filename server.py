@@ -9,6 +9,7 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 from socketserver import ThreadingTCPServer
 from urllib.parse import urlparse, parse_qs
 import cmx_data_manager
+import apx_data_manager
 import oil_data_manager
 import tfx_data_manager
 import uko_uso_data_manager
@@ -132,6 +133,63 @@ trades_lock = threading.Lock()
 pending_history = {}
 history_lock = threading.Lock()
 
+# Pending position-cost requests (same shape as pending_history)
+pending_positions = {}
+positions_lock = threading.Lock()
+
+# Symbols already subscribed for the Fixed Spread (CMX.MGC series vs APX) live grid.
+# Guards against re-sending the expensive subscribe (6000-bar session recompute) every poll.
+cmx_apx_subscribed = set()
+
+# Spread-series pair configs. swap=0 / comm per the futures leg (spot legs have neither).
+# contract_first: live spread is (contract - spot); False = (spot - contract), matching
+# each data manager's regression convention.
+SPREAD_TYPES = {
+    "apx":  {"dir": "apx", "spot": "APX.AUP10", "prefix": "CMX.MGC",  "contract_first": True,  "swap": 0.03, "comm": 0.642,  "asset": "gold_apx"},
+    "gold": {"dir": "cmx", "spot": "XAUUSD.sc", "prefix": "CMX.MGC",  "contract_first": True,  "swap": 0.0,  "comm": 0.642,  "asset": "gold"},
+    "oil":  {"dir": "oil", "spot": "USOUSD.sc", "prefix": "NYX.MCLE", "contract_first": False, "swap": 0.0,  "comm": 0.0642, "asset": "oil"},
+}
+
+# Cached historical Edge% best/worst + residuals per type (heavy CSV scan, refreshed <=1/min)
+_edge_stats_cache = {}
+_residuals_cache = {}
+_edge_stats_lock = threading.Lock()
+
+def _series_module(typ):
+    return {"apx": apx_data_manager, "gold": cmx_data_manager, "oil": oil_data_manager}.get(typ, apx_data_manager)
+
+def get_cached_edge_stats(typ="apx", max_age=60):
+    with _edge_stats_lock:
+        ent = _edge_stats_cache.setdefault(typ, {"ts": 0.0, "data": None})
+        now = time.time()
+        if ent["data"] is None or now - ent["ts"] > max_age:
+            try:
+                ent["data"] = _series_module(typ).get_edge_stats()
+            except Exception:
+                ent["data"] = None
+            ent["ts"] = now
+        return ent["data"]
+
+def get_cached_residuals(typ="apx", max_age=60):
+    with _edge_stats_lock:
+        ent = _residuals_cache.setdefault(typ, {"ts": 0.0, "data": None})
+        now = time.time()
+        if ent["data"] is None or now - ent["ts"] > max_age:
+            try:
+                ent["data"] = _series_module(typ).get_residuals()
+            except Exception:
+                ent["data"] = None
+            ent["ts"] = now
+        return ent["data"]
+
+def percentile_of(sorted_list, value):
+    """Percentile rank (0-100) of value within a sorted list. P50 = median."""
+    import bisect
+    if not sorted_list:
+        return None
+    i = bisect.bisect_left(sorted_list, value)
+    return round(i / len(sorted_list) * 100.0, 1)
+
 def log_message(message):
     """Appends a system message to the global logs."""
     timestamp = time.strftime("[%Y-%m-%d %H:%M:%S]")
@@ -249,6 +307,15 @@ def read_worker_output(broker_key, worker):
             symbol = msg.get("symbol")
             tick_time = msg.get("time")
             with state_lock:
+                if "global_prices" not in state:
+                    state["global_prices"] = {}
+                state["global_prices"][symbol] = {
+                    "bid": msg.get("bid"),
+                    "ask": msg.get("ask"),
+                    "time": tick_time,
+                    "local_time": time.time()
+                }
+
                 updated = False
                 if state[broker_key]["symbol"] == symbol:
                     state[broker_key]["bid"] = msg.get("bid")
@@ -291,6 +358,12 @@ def read_worker_output(broker_key, worker):
             request_id = msg.get("request_id")
             actual_broker_key = msg.get("broker_key", broker_key)
             handle_history_response(actual_broker_key, request_id, msg)
+
+        # 3.6 Handle Position-cost results
+        elif status == "position_costs_result":
+            request_id = msg.get("request_id")
+            actual_broker_key = msg.get("broker_key", broker_key)
+            handle_position_costs_response(actual_broker_key, request_id, msg)
             
         # 4. Handle logs from worker
         elif msg_type == "log":
@@ -315,6 +388,16 @@ def handle_history_response(broker_key, request_id, result):
         
         # Check if both worker results are received
         r = pending_history[request_id]
+        if r["broker1"] is not None and r["broker2"] is not None:
+            r["event"].set()
+
+def handle_position_costs_response(broker_key, request_id, result):
+    """Tracks open-position cost responses from both workers."""
+    with positions_lock:
+        if request_id not in pending_positions:
+            return
+        pending_positions[request_id][broker_key] = result
+        r = pending_positions[request_id]
         if r["broker1"] is not None and r["broker2"] is not None:
             r["event"].set()
 
@@ -627,6 +710,8 @@ class APIHandler(SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        # Never let the browser serve a stale index.html / app.js
+        self.send_header('Cache-Control', 'no-cache, no-store, must-revalidate')
         super().end_headers()
 
     def do_OPTIONS(self):
@@ -638,6 +723,149 @@ class APIHandler(SimpleHTTPRequestHandler):
         path = parsed_path.path
         query = parse_qs(parsed_path.query)
         
+        # 0. API: Spread series cards (type = apx | gold | oil)
+        if path == "/api/cmx_apx_series":
+            typ = query.get("type", ["apx"])[0]
+            cfg = SPREAD_TYPES.get(typ, SPREAD_TYPES["apx"])
+            spot_sym, prefix, contract_first = cfg["spot"], cfg["prefix"], cfg["contract_first"]
+            swap_rate, comm_oz, swap_basis = cfg["swap"], cfg["comm"], 360.0
+            data_dir = "historical_data/" + cfg["dir"]
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            res = []
+            try:
+                m = c = dte0 = None
+                reg_path = os.path.join(data_dir, "regression.json")
+                if os.path.exists(reg_path):
+                    with open(reg_path, "r") as rf:
+                        reg = json.load(rf)
+                        m, c, dte0 = reg.get("slope"), reg.get("intercept"), reg.get("dte0")
+                if m and dte0 is None:
+                    dte0 = max(-c / m, 0.0)   # gold/oil: convergence where fair value crosses 0 (>=expiry)
+
+                meta_path = os.path.join(data_dir, "meta.json")
+                if m and os.path.exists(meta_path):
+                    with open(meta_path, "r") as f:
+                        meta = json.load(f)
+                    contracts = [s for s in meta if s.startswith(prefix)]
+
+                    with state_lock:
+                        gp = dict(state.get("global_prices", {}))
+                        s1 = state["broker1"].get("symbol", "") or ""
+                        s2 = state["broker2"].get("symbol", "") or ""
+                        conn = {"broker1": state["broker1"]["connected"], "broker2": state["broker2"]["connected"]}
+                    # which broker streams the futures contracts vs the spot leg
+                    if s2.startswith(prefix):
+                        contract_bk, spot_bk = "broker2", "broker1"
+                    else:
+                        contract_bk, spot_bk = "broker1", "broker2"
+
+                    # keep all legs streaming (cheap re-subscribe; self-heals after reconnect)
+                    if conn[contract_bk]:
+                        for s in contracts:
+                            send_to_worker(contract_bk, {"command": "subscribe", "symbol": s})
+                    if conn[spot_bk]:
+                        send_to_worker(spot_bk, {"command": "subscribe", "symbol": spot_sym})
+
+                    stats = get_cached_edge_stats(typ)
+                    best_all = worst_all = None
+                    if isinstance(stats, dict) and isinstance(stats.get("All"), dict):
+                        best_all, worst_all = stats["All"].get("best"), stats["All"].get("worst")
+                    residuals = get_cached_residuals(typ)
+
+                    now_ts = time.time()
+                    spot_p = gp.get(spot_sym)
+                    spot_fresh = bool(spot_p and spot_p.get("ask") and spot_p.get("bid") and (now_ts - spot_p.get("local_time", 0) <= 60))
+
+                    for sym in contracts:
+                        exp = meta[sym].get("expiration_time", 0)
+                        dte = (exp - time.time()) / 86400.0 if exp > 0 else 0
+                        fv_unrounded = (m * dte + c) if dte > 0 else 0
+                        fair_value = round(fv_unrounded, 2) if dte > 0 else 0
+                        N = max(dte - dte0, 0.0)
+                        conv_ts = exp - dte0 * 86400.0
+                        conv_date = time.strftime('%Y-%m-%d', time.gmtime(conv_ts)) if exp > 0 else "-"
+                        conv_days = round(N, 1)
+
+                        edge = edge_pct = edge_fv = edge_fv_pct = percentile = max_edge = min_edge = position_pct = None
+                        c_p = gp.get(sym)
+                        c_fresh = bool(c_p and c_p.get("bid") and c_p.get("ask") and (now_ts - c_p.get("local_time", 0) <= 60))
+                        if dte > 0 and spot_fresh and c_fresh:
+                            sb, sa = spot_p.get("bid"), spot_p.get("ask")
+                            cb, ca = c_p.get("bid"), c_p.get("ask")
+                            S = (sb + sa) / 2.0
+                            cmid = (cb + ca) / 2.0
+                            if contract_first:
+                                entry_spread = cb - sa          # short contract / long spot
+                                mid_spread = cmid - S
+                            else:
+                                entry_spread = sb - ca          # short spot / long contract
+                                mid_spread = S - cmid
+                            edge = round(entry_spread - S * swap_rate / swap_basis * N - comm_oz, 2)
+                            edge_fv = round(fv_unrounded - S * swap_rate / swap_basis * N - comm_oz, 2)
+                            if S and N >= 1.0:
+                                edge_pct = round(edge / S * 360.0 / N * 100.0, 3)
+                                edge_fv_pct = round(edge_fv / S * 360.0 / N * 100.0, 3)
+                                if best_all is not None and worst_all is not None:
+                                    max_edge = round(best_all / 100.0 * S * N / 360.0, 2)
+                                    min_edge = round(worst_all / 100.0 * S * N / 360.0, 2)
+                                    rng = best_all - worst_all
+                                    if rng:
+                                        position_pct = round(max(0.0, min(100.0, (edge_pct - worst_all) / rng * 100.0)), 1)
+                            if residuals:
+                                percentile = percentile_of(residuals, mid_spread - fv_unrounded)
+
+                        res.append({
+                            "symbol": sym,
+                            "expiration_time": exp,
+                            "fair_value": fair_value,
+                            "conv_date": conv_date,
+                            "conv_days": conv_days,
+                            "edge": edge,
+                            "edge_pct": edge_pct,
+                            "edge_fv": edge_fv,
+                            "edge_fv_pct": edge_fv_pct,
+                            "percentile": percentile,
+                            "max_edge": max_edge,
+                            "min_edge": min_edge,
+                            "position_pct": position_pct
+                        })
+                    res.sort(key=lambda x: x.get("expiration_time", 0))
+            except Exception:
+                pass
+            self.wfile.write(json.dumps(res).encode('utf-8'))
+            return
+
+        elif path == "/api/cmx_apx_subscribe_all":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            try:
+                # Reset the guard so a fresh button click re-subscribes everything
+                # (e.g. after a reconnect dropped the worker's subscriptions). The series
+                # poll re-subscribes lazily once connected; here we also push immediately
+                # if already connected.
+                cmx_apx_subscribed.clear()
+                with state_lock:
+                    conn1 = state["broker1"]["connected"]
+                    conn2 = state["broker2"]["connected"]
+                meta_path = "historical_data/apx/meta.json"
+                if os.path.exists(meta_path) and conn1:
+                    with open(meta_path, "r") as f:
+                        meta = json.load(f)
+                    for sym in meta.keys():
+                        if sym.startswith("CMX.MGC"):
+                            send_to_worker("broker1", {"command": "subscribe", "symbol": sym})
+                            cmx_apx_subscribed.add(sym)
+                if conn2:
+                    send_to_worker("broker2", {"command": "subscribe", "symbol": "APX.AUP10"})
+                    cmx_apx_subscribed.add("APX.AUP10")
+                self.wfile.write(json.dumps({"status": "ok"}).encode("utf-8"))
+            except Exception as e:
+                self.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode("utf-8"))
+            return
+
         # 1. API: Get Current State Data
         if path == "/api/data":
             self.send_response(200)
@@ -658,18 +886,28 @@ class APIHandler(SimpleHTTPRequestHandler):
 
                     spread_info["fair_value"] = None
                     spread_info["fair_value_before"] = None
+                    spread_info["edge"] = None
+                    spread_info["edge_pct"] = None
+                    spread_info["conv_date"] = None
+                    spread_info["conv_days"] = None
                     spread_info["asset_type"] = None
                     sym1 = state["broker1"].get("symbol", "")
                     sym2 = state["broker2"].get("symbol", "")
                     cmx_sym = None
+                    apx_sym = None
                     oil_sym = None
                     uko_uso_sym = False
-                    
+
                     if sym1 and sym1.startswith("CMX.MGC") and sym2 == "XAUUSD.sc":
                         cmx_sym = sym1
                     elif sym2 and sym2.startswith("CMX.MGC") and sym1 == "XAUUSD.sc":
                         cmx_sym = sym2
-                        
+
+                    if sym1 and sym1.startswith("CMX.MGC") and sym2 == "APX.AUP10":
+                        apx_sym = sym1
+                    elif sym2 and sym2.startswith("CMX.MGC") and sym1 == "APX.AUP10":
+                        apx_sym = sym2
+
                     if sym1 and sym1.startswith("NYX.MCLE") and "USO" in sym2:
                         oil_sym = sym1
                     elif sym2 and sym2.startswith("NYX.MCLE") and "USO" in sym1:
@@ -702,6 +940,53 @@ class APIHandler(SimpleHTTPRequestHandler):
                                         fv = m * dte + c
                                         spread_info["fair_value"] = round(fv, 2)
                         except Exception as e:
+                            pass
+                    elif apx_sym:
+                        spread_info["asset_type"] = "gold_apx"
+                        try:
+                            meta_path = "historical_data/apx/meta.json"
+                            if os.path.exists(meta_path):
+                                with open(meta_path, "r") as f:
+                                    meta = json.load(f)
+                                exp = meta.get(apx_sym, {}).get("expiration_time", 0)
+                                if exp > 0:
+                                    dte = (exp - time.time()) / 86400.0
+                                    if dte > 0:
+                                        m, c, dte0 = 0.5595, -1.9405, 3.468
+                                        swap_rate, swap_basis, comm_oz = 0.03, 360.0, 0.642
+                                        reg_path = "historical_data/apx/regression.json"
+                                        if os.path.exists(reg_path):
+                                            try:
+                                                with open(reg_path, "r") as rf:
+                                                    reg = json.load(rf)
+                                                    m = reg.get("slope", m)
+                                                    c = reg.get("intercept", c)
+                                                    dte0 = reg.get("dte0", dte0)
+                                                    swap_rate = reg.get("swap_rate", swap_rate)
+                                                    swap_basis = reg.get("swap_basis", swap_basis)
+                                                    comm_oz = reg.get("comm_per_oz", comm_oz)
+                                            except Exception:
+                                                pass
+                                        spread_info["fair_value"] = round(m * dte + c, 2)
+                                        N = max(dte - dte0, 0.0)
+                                        # statistical convergence day = expiry - dte0 (where fair value = 0)
+                                        conv_ts = exp - dte0 * 86400.0
+                                        spread_info["conv_date"] = time.strftime('%Y-%m-%d', time.gmtime(conv_ts))
+                                        spread_info["conv_days"] = round(N, 1)
+                                        # live Edge: entry = sell MGC @ bid, buy APX @ ask (valid prices only)
+                                        if sym1 == "APX.AUP10":
+                                            apx_bid, apx_ask, mgc_bid = b1_bid, b1_ask, b2_bid
+                                        else:
+                                            apx_bid, apx_ask, mgc_bid = b2_bid, b2_ask, b1_bid
+                                        if apx_bid and apx_ask and mgc_bid and apx_bid > 0 and apx_ask > 0 and mgc_bid > 0:
+                                            S = (apx_bid + apx_ask) / 2.0
+                                            entry_spread = mgc_bid - apx_ask
+                                            edge = entry_spread - S * swap_rate / swap_basis * N - comm_oz
+                                            spread_info["edge"] = round(edge, 2)
+                                            # annualized %: normalize by gold price and time-to-convergence
+                                            if S and N >= 1.0:
+                                                spread_info["edge_pct"] = round(edge / S * 360.0 / N * 100.0, 3)
+                        except Exception:
                             pass
                     elif oil_sym:
                         spread_info["asset_type"] = "oil"
@@ -771,7 +1056,8 @@ class APIHandler(SimpleHTTPRequestHandler):
                     },
                     "spread": spread_info,
                     "orders": state["orders"],
-                    "logs": state["logs"]
+                    "logs": state["logs"],
+                    "global_prices": state.get("global_prices", {})
                 }
                 
             self.wfile.write(json.dumps(response_data).encode("utf-8"))
@@ -923,13 +1209,21 @@ class APIHandler(SimpleHTTPRequestHandler):
             
             if symbol1 and symbol2 and (("UKOUSD" in symbol1 and "USOUSD" in symbol2) or ("USOUSD" in symbol1 and "UKOUSD" in symbol2)):
                 uko_uso_sym = True
-                
+
+            apx_sym = None
+            if symbol1 and symbol1.startswith("CMX.MGC") and symbol2 == "APX.AUP10": apx_sym = symbol1
+            elif symbol2 and symbol2.startswith("CMX.MGC") and symbol1 == "APX.AUP10": apx_sym = symbol2
+
             fv_m = None
             fv_c = None
             fv_exp = 0
             fv_avg = None
             fv_avg_before = None
-            
+            fv_dte0 = 3.468
+            fv_swap = 0.03
+            fv_basis = 360.0
+            fv_comm = 0.642
+
             if cmx_sym:
                 try:
                     if os.path.exists("historical_data/cmx/meta.json"):
@@ -977,6 +1271,29 @@ class APIHandler(SimpleHTTPRequestHandler):
                             fv_avg = d.get("average")
                             fv_avg_before = d.get("average_before_war")
                 except: pass
+            elif apx_sym:
+                try:
+                    if os.path.exists("historical_data/apx/meta.json"):
+                        with open("historical_data/apx/meta.json", "r") as f:
+                            meta = json.load(f)
+                        if apx_sym in meta:
+                            fv_exp = meta[apx_sym].get("expiration_time", 0)
+                        else:
+                            now_ts = time.time()
+                            future = {k: v["expiration_time"] for k, v in meta.items() if v.get("expiration_time", 0) > now_ts}
+                            if future:
+                                fv_exp = min(future.values())
+                            elif meta:
+                                fv_exp = max(v.get("expiration_time", 0) for v in meta.values())
+                    if os.path.exists("historical_data/apx/regression.json"):
+                        with open("historical_data/apx/regression.json", "r") as f:
+                            d = json.load(f)
+                            fv_m, fv_c = d.get("slope"), d.get("intercept")
+                            fv_dte0 = d.get("dte0", fv_dte0)
+                            fv_swap = d.get("swap_rate", fv_swap)
+                            fv_basis = d.get("swap_basis", fv_basis)
+                            fv_comm = d.get("comm_per_oz", fv_comm)
+                except: pass
 
             # Get sessions from state
             with state_lock:
@@ -1023,9 +1340,9 @@ class APIHandler(SimpleHTTPRequestHandler):
                     filtered_times.append(t)
             
             stats = {
-                "24h": {"best_bid": None, "best_ask": None},
-                "3d": {"best_bid": None, "best_ask": None},
-                "7d": {"best_bid": None, "best_ask": None}
+                "24h": {"best_bid": None, "best_ask": None, "best_edge_pct": None, "worst_edge_pct": None, "n": 0},
+                "3d": {"best_bid": None, "best_ask": None, "best_edge_pct": None, "worst_edge_pct": None, "n": 0},
+                "7d": {"best_bid": None, "best_ask": None, "best_edge_pct": None, "worst_edge_pct": None, "n": 0}
             }
             
             chart_data = []
@@ -1056,12 +1373,15 @@ class APIHandler(SimpleHTTPRequestHandler):
                                 mid2 = (bid_close2 + ask_close2) / 2
                                 mid_spread = mid1 - mid2
                                 
-                                # Compute Fair Value historically
                                 fv = None
                                 fv_before = None
-                                if (cmx_sym or oil_sym) and fv_m is not None and fv_c is not None and fv_exp > 0:
+                                edge_pct_val = None
+                                if (cmx_sym or oil_sym or apx_sym) and fv_m is not None and fv_c is not None and fv_exp > 0:
                                     dte = (fv_exp - t) / 86400.0
                                     fv = round(fv_m * dte + fv_c, 2)
+                                    
+
+                                            
                                 elif uko_uso_sym:
                                     fv = round(fv_avg, 2) if fv_avg is not None else None
                                     fv_before = round(fv_avg_before, 2) if fv_avg_before is not None else None
@@ -1079,7 +1399,35 @@ class APIHandler(SimpleHTTPRequestHandler):
                         stats[tf_name]["best_bid"] = max(tf_bids)
                     if tf_asks:
                         stats[tf_name]["best_ask"] = min(tf_asks)
+                        
+
             
+            # Edge ($) + Edge% of each best bid/ask spread (gold / oil / apx pairs)
+            fut_sym = apx_sym or cmx_sym or oil_sym
+            e_swap = 0.03 if apx_sym else 0.0
+            e_comm = 0.0642 if oil_sym else 0.642
+            if fut_sym and filtered_times and fv_exp > 0 and fv_m is not None:
+                dte0_h = max(-fv_c / fv_m, 0.0) if fv_m else 0.0
+                now_dte = (fv_exp - time.time()) / 86400.0
+                Ncur = max(now_dte - dte0_h, 0.0)
+                at = max(filtered_times)
+                spot_map = time_map2 if fut_sym == symbol1 else time_map1   # spot = the non-futures leg
+                b = spot_map.get(at)
+                S_cur = (b["bid_close"] + b["ask_close"]) / 2.0 if b else None
+                if S_cur and Ncur >= 1.0:
+                    carry = S_cur * e_swap / 360.0 * Ncur + e_comm
+                    for tf in stats:
+                        bb = stats[tf].get("best_bid")
+                        if bb is not None:
+                            e = bb - carry
+                            stats[tf]["bid_edge"] = round(e, 2)
+                            stats[tf]["bid_edge_pct"] = round(e / S_cur * 360.0 / Ncur * 100.0, 1)
+                        ba = stats[tf].get("best_ask")
+                        if ba is not None:
+                            e2 = ba - carry
+                            stats[tf]["ask_edge"] = round(e2, 2)
+                            stats[tf]["ask_edge_pct"] = round(e2 / S_cur * 360.0 / Ncur * 100.0, 1)
+
             # Sort chart data chronologically
             chart_data.sort(key=lambda x: x["time"])
                         
@@ -1172,6 +1520,34 @@ class APIHandler(SimpleHTTPRequestHandler):
         elif path == "/api/cmx_chart_data":
             try:
                 data = cmx_data_manager.get_chart_data()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(data).encode("utf-8"))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+
+        elif path == "/api/apx_chart_data":
+            try:
+                data = apx_data_manager.get_chart_data()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(data).encode("utf-8"))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+
+        elif path == "/api/apx_edge_stats":
+            try:
+                data = apx_data_manager.get_edge_stats()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
@@ -1571,6 +1947,158 @@ class APIHandler(SimpleHTTPRequestHandler):
                 # We need to run this in a thread so it doesn't block the main server thread
                 # However, since the user explicitly clicks it, we can return the response when done
                 res = cmx_data_manager.fetch_and_store()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(res).encode("utf-8"))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"status": "error", "message": str(e)}).encode("utf-8"))
+            return
+
+        # 8c. API: Actual open-position costs for the APX vs CMX.MGC pair
+        elif path == "/api/apx_position":
+            def _send_json(code, payload):
+                self.send_response(code)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps(payload).encode("utf-8"))
+
+            with state_lock:
+                sym1 = state["broker1"].get("symbol", "") or ""
+                sym2 = state["broker2"].get("symbol", "") or ""
+                conn1 = state["broker1"]["connected"]
+                conn2 = state["broker2"]["connected"]
+                live = {
+                    "broker1": (state["broker1"]["bid"], state["broker1"]["ask"]),
+                    "broker2": (state["broker2"]["bid"], state["broker2"]["ask"]),
+                }
+
+            def _is_mgc(s):
+                return s.startswith("CMX.MGC")
+
+            if not ((_is_mgc(sym1) and sym2 == "APX.AUP10") or (_is_mgc(sym2) and sym1 == "APX.AUP10")):
+                _send_json(400, {"status": "error", "message": "Load the CMX.MGC vs APX.AUP10 pair first"})
+                return
+            if not conn1 or not conn2:
+                _send_json(400, {"status": "error", "message": "Both MT5 terminals must be connected"})
+                return
+
+            req_id = str(uuid.uuid4())[:8]
+            event = threading.Event()
+            with positions_lock:
+                pending_positions[req_id] = {"event": event, "broker1": None, "broker2": None}
+            send_to_worker("broker1", {"command": "get_position_costs", "symbol": sym1, "request_id": req_id, "broker_key": "broker1"})
+            send_to_worker("broker2", {"command": "get_position_costs", "symbol": sym2, "request_id": req_id, "broker_key": "broker2"})
+            ok = event.wait(timeout=5.0)
+            with positions_lock:
+                res = pending_positions.pop(req_id, None)
+
+            if not ok or not res or not res["broker1"] or not res["broker2"]:
+                _send_json(504, {"status": "error", "message": "Timeout waiting for position data from MT5 workers"})
+                return
+
+            # Map results to legs by symbol
+            by_key = {"broker1": res["broker1"], "broker2": res["broker2"]}
+            mgc_key = "broker1" if _is_mgc(sym1) else "broker2"
+            apx_key = "broker2" if mgc_key == "broker1" else "broker1"
+            mgc, apx = by_key[mgc_key], by_key[apx_key]
+            mgc_bid, mgc_ask = live[mgc_key]
+            apx_bid, apx_ask = live[apx_key]
+
+            has_pos = bool(mgc.get("positions")) or bool(apx.get("positions"))
+            out = {
+                "status": "ok",
+                "has_position": has_pos,
+                "mgc_symbol": mgc.get("symbol"),
+                "apx_symbol": apx.get("symbol"),
+                "legs": {"mgc": mgc, "apx": apx},
+            }
+
+            if has_pos:
+                CONTRACT_OZ = 10.0
+                swap_rate, swap_basis, comm_oz, dte0 = 0.03, 360.0, 0.642, 3.468
+                reg_path = "historical_data/apx/regression.json"
+                if os.path.exists(reg_path):
+                    try:
+                        with open(reg_path, "r") as rf:
+                            reg = json.load(rf)
+                            swap_rate = reg.get("swap_rate", swap_rate)
+                            swap_basis = reg.get("swap_basis", swap_basis)
+                            comm_oz = reg.get("comm_per_oz", comm_oz)
+                            dte0 = reg.get("dte0", dte0)
+                    except Exception:
+                        pass
+
+                matched_lots = min(abs(mgc.get("net_volume") or 0.0), abs(apx.get("net_volume") or 0.0))
+                oz = matched_lots * CONTRACT_OZ
+
+                entry_spread = None
+                if mgc.get("avg_open") is not None and apx.get("avg_open") is not None:
+                    entry_spread = mgc["avg_open"] - apx["avg_open"]
+
+                current_spread = None  # exit spread: buy MGC @ ask, sell APX @ bid
+                if None not in (mgc_ask, apx_bid):
+                    current_spread = mgc_ask - apx_bid
+
+                swap_paid = (mgc.get("swap") or 0.0) + (apx.get("swap") or 0.0)
+                comm_entry = (mgc.get("commission") or 0.0) + (apx.get("commission") or 0.0)
+                floating = (mgc.get("profit") or 0.0) + (apx.get("profit") or 0.0)
+
+                gross_now = None
+                net_now = None
+                if entry_spread is not None and current_spread is not None:
+                    gross_now = (entry_spread - current_spread) * oz
+                    net_now = gross_now + swap_paid + comm_entry  # swap/comm are negative
+
+                # Projection to convergence using the MGC contract expiration
+                dte = None
+                try:
+                    meta_path = "historical_data/apx/meta.json"
+                    if os.path.exists(meta_path):
+                        with open(meta_path, "r") as f:
+                            meta = json.load(f)
+                        exp = meta.get(mgc.get("symbol"), {}).get("expiration_time", 0)
+                        if exp > 0:
+                            dte = (exp - time.time()) / 86400.0
+                except Exception:
+                    pass
+
+                projected_total_net = None
+                remaining_swap = None
+                if dte is not None and entry_spread is not None:
+                    N = max(dte - dte0, 0.0)
+                    S = (apx_bid + apx_ask) / 2.0 if None not in (apx_bid, apx_ask) else apx.get("avg_open")
+                    remaining_swap = -(S * swap_rate / swap_basis * N * oz) if S else 0.0
+                    exit_comm = comm_entry  # exit side ~ same as entry commission
+                    # terminal spread ~ 0 at convergence -> capture full entry_spread
+                    projected_total_net = entry_spread * oz + (swap_paid + remaining_swap) + (comm_entry + exit_comm)
+
+                out.update({
+                    "matched_lots": round(matched_lots, 2),
+                    "oz": round(oz, 2),
+                    "entry_spread": round(entry_spread, 2) if entry_spread is not None else None,
+                    "current_spread": round(current_spread, 2) if current_spread is not None else None,
+                    "swap_paid": round(swap_paid, 2),
+                    "commission_entry": round(comm_entry, 2),
+                    "floating_pnl": round(floating, 2),
+                    "gross_now": round(gross_now, 2) if gross_now is not None else None,
+                    "net_now": round(net_now, 2) if net_now is not None else None,
+                    "dte": round(dte, 2) if dte is not None else None,
+                    "remaining_swap": round(remaining_swap, 2) if remaining_swap is not None else None,
+                    "projected_total_net": round(projected_total_net, 2) if projected_total_net is not None else None,
+                    "open_time": mgc.get("open_time") or apx.get("open_time"),
+                })
+
+            _send_json(200, out)
+            return
+
+        # 8b. API: Fetch APX (Gold Perp) vs CMX.MGC Data
+        elif path == "/api/apx_fetch":
+            try:
+                res = apx_data_manager.fetch_and_store()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()

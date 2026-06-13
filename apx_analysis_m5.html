@@ -68,6 +68,18 @@
             <div class="chart-desc">X-Axis: Real-time Date. Y-Axis: Price difference between MGC series. Start point anchored to nearest contract.</div>
             <div id="chart3" class="plot-container"></div>
         </div>
+
+        <div class="chart-box">
+            <div class="chart-title">4. Historical Edge vs Time <small id="edge-stats" style="color:#94a3b8; font-weight:normal;"></small></div>
+            <div class="chart-desc">Edge = Spread &minus; S&times;3%/360&times;N(t) &minus; commission ($/oz). N = days to convergence (dte&#8320;). Above the dashed 0-line = net-profitable entry held to convergence.</div>
+            <div id="chart4" class="plot-container"></div>
+        </div>
+
+        <div class="chart-box">
+            <div class="chart-title">5. Edge vs Days to Expiration (comparable)</div>
+            <div class="chart-desc">Same Edge, plotted against DTE so every contract is comparable on one axis. At a given DTE, a higher curve = a richer entry than usual.</div>
+            <div id="chart5" class="plot-container"></div>
+        </div>
     </div>
 
     <script>
@@ -109,6 +121,31 @@
                     yaxis: { title: 'Calendar Spread Difference', gridcolor: '#334155', zerolinecolor: '#475569', tickcolor: '#94a3b8' }
                 });
                 Plotly.newPlot('chart3', result.traces_calendar, layout3);
+
+                // Chart 4: Historical Edge vs time (0-line = break-even)
+                const zeroLine = { type: 'line', xref: 'paper', x0: 0, x1: 1, y0: 0, y1: 0,
+                                   line: { color: '#ef4444', width: 1, dash: 'dash' } };
+                const layout4 = Object.assign({}, layout_base, {
+                    xaxis: { title: 'Date', gridcolor: '#334155', zerolinecolor: '#475569', tickcolor: '#94a3b8' },
+                    yaxis: { title: 'Edge ($/oz)', gridcolor: '#334155', zerolinecolor: '#475569', tickcolor: '#94a3b8' },
+                    shapes: [zeroLine]
+                });
+                Plotly.newPlot('chart4', result.traces_edge_time || [], layout4);
+
+                // Chart 5: Edge vs DTE (comparable across contracts)
+                const layout5 = Object.assign({}, layout_base, {
+                    xaxis: { title: 'Days to Expiration', autorange: 'reversed', gridcolor: '#334155', zerolinecolor: '#475569', tickcolor: '#94a3b8' },
+                    yaxis: { title: 'Edge ($/oz)', gridcolor: '#334155', zerolinecolor: '#475569', tickcolor: '#94a3b8' },
+                    shapes: [zeroLine]
+                });
+                Plotly.newPlot('chart5', result.traces_edge_dte || [], layout5);
+
+                // Edge percentile context
+                const s = result.edge_stats;
+                if (s) {
+                    document.getElementById('edge-stats').textContent =
+                        ` — now: ${s.current}  |  median: ${s.median}  |  p75: ${s.p75}  |  p90: ${s.p90}  |  range: ${s.min}..${s.max}`;
+                }
 
             } catch (err) {
                 console.error("Failed to load charts:", err);

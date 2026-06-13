@@ -24,9 +24,10 @@
                 <span class="badge badge-premium">v1.1</span>
             </div>
             <div class="header-status" style="display: flex; gap: 15px; align-items: center;">
-                <a href="uko_uso_analysis_m5.html" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none;"><i class="fa-solid fa-chart-line"></i> UKO/USO</a>
-                <a href="spread_analysis_m5.html" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none;"><i class="fa-solid fa-chart-line"></i> Gold Analytics</a>
-                <a href="oil_analysis_m5.html" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none;"><i class="fa-solid fa-oil-well"></i> Oil Analytics</a>
+                <a href="uko_uso_analysis_m5.html" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none; color: black;"><i class="fa-solid fa-chart-line"></i> UKO/USO</a>
+                <a href="spread_analysis_m5.html" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none; color: black;"><i class="fa-solid fa-chart-line"></i> Gold Analytics</a>
+                <a href="apx_analysis_m5.html" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none; color: black;"><i class="fa-solid fa-chart-line"></i> APX Gold Perp</a>
+                <a href="oil_analysis_m5.html" target="_blank" class="btn btn-secondary btn-xs" style="text-decoration: none; color: black;"><i class="fa-solid fa-oil-well"></i> Oil Analytics</a>
                 <div class="status-indicator">
                     <span class="status-dot green"></span>
                     <span>Localhost Active (8080)</span>
@@ -35,18 +36,32 @@
         </header>
 
         <!-- Main Grid Layout -->
-        <main class="app-grid">
+        <main class="app-grid" id="main-grid">
             
             <!-- Left Panel: Connection Configuration -->
-            <section class="panel panel-config">
-                <div class="panel-header">
-                    <h2><i class="fa-solid fa-server"></i> Terminal Connections</h2>
-                    <button id="btn-save-config" class="btn btn-secondary btn-icon" title="Save Credentials" style="display: none;"><i class="fa-solid fa-floppy-disk"></i></button>
-                </div>
-                
-                <div class="panel-body">
-                    <!-- Broker 1 Config -->
-                    <div class="config-card">
+            <div class="left-column" style="display: flex; flex-direction: column; gap: 15px; min-height: 0;">
+                <section class="panel panel-config">
+                    <div class="panel-header">
+                        <h2><i class="fa-solid fa-server"></i> Terminal Connections</h2>
+                        <button id="btn-save-config" class="btn btn-secondary btn-icon" title="Save Credentials" style="display: none;"><i class="fa-solid fa-floppy-disk"></i></button>
+                    </div>
+                    
+                    <div class="panel-body">
+                        <!-- Spread -->
+                        <div class="config-card" style="margin-bottom: 20px;">
+                            <div class="config-card-header">
+                                <h3><i class="fa-solid fa-layer-group" style="color: #fbbf24;"></i> Spread</h3>
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <button id="btn-series-apx" class="btn" style="width:100%; justify-content:center; background:#2563eb; color:#ffffff; border:none; font-weight:700;">CMX.MGCXX vs APX.AUP10</button>
+                                <button id="btn-series-gold" class="btn" style="width:100%; justify-content:center; background:#2563eb; color:#ffffff; border:none; font-weight:700;">CMX.MGCXX vs XAUUSD.sc</button>
+                                <button id="btn-series-oil" class="btn" style="width:100%; justify-content:center; background:#2563eb; color:#ffffff; border:none; font-weight:700;">USOUSD.sc vs NYX.MCLEXX</button>
+                                <button id="btn-series-ukouso" class="btn" style="width:100%; justify-content:center; background:#2563eb; color:#ffffff; border:none; font-weight:700;">UKOUSD.sc vs USOUSD.sc</button>
+                            </div>
+                        </div>
+
+                        <!-- Broker 1 Config -->
+                        <div class="config-card">
                         <div class="config-card-header">
                             <h3>Broker 1 (Leg 1)</h3>
                             <span id="status-b1" class="status-pill offline">Offline</span>
@@ -96,8 +111,10 @@
                             <div class="favorites-empty">No favorites saved yet.</div>
                         </div>
                     </div>
+
                 </div>
-            </section>
+                </section>
+            </div>
 
             <!-- Middle Panel: Live Trading Monitor -->
             <section class="panel panel-trading">
@@ -107,6 +124,9 @@
                 </div>
                 
                 <div class="panel-body">
+                    <!-- Series Bar Container -->
+                    <div id="cmx-apx-series-bar" class="hidden" style="display: flex; gap: 8px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px;"></div>
+
                     <!-- Symbol Configuration Row -->
                     <div class="symbols-config-row">
                         <div class="symbol-search-container">
@@ -194,6 +214,17 @@
                                     <span class="spread-label" style="color: var(--color-warning); font-size: 11px;">FAIR VALUE <small style="opacity:0.7" id="fair-value-label">(Gold DTE Regression)</small></span>
                                     <span class="spread-val font-mono" id="spread-fair-value" style="color: var(--color-warning); font-size: 18px; line-height: 1;">-</span>
                                 </div>
+                                <div id="edge-container" style="display: none; align-items: baseline; gap: 6px;">
+                                    <span class="spread-label" style="font-size: 11px;">EDGE <small style="opacity:0.7">(net/oz to conv.)</small></span>
+                                    <span class="spread-val font-mono" id="spread-edge" style="font-size: 18px; line-height: 1;">-</span>
+                                    <span class="font-mono" id="spread-edge-pct" style="font-size: 12px; opacity:0.85;">-</span>
+                                </div>
+                                <div id="conv-container" style="display: none; align-items: baseline; gap: 6px;">
+                                    <span class="spread-label" style="font-size: 11px;">CONV <small style="opacity:0.7">(last day)</small></span>
+                                    <span class="font-mono" id="spread-conv" style="font-size: 13px; line-height: 1; color: var(--text-white);">-</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 15px;">
                                 <button id="btn-refresh-history" class="btn btn-secondary btn-icon btn-xs" title="Refresh stats" disabled>
                                     <i class="fa-solid fa-rotate"></i>
                                 </button>
@@ -243,7 +274,36 @@
                         <div class="spread-formula-hint">
                             Formula: Bid Spread = Bid<sub>1</sub> - Ask<sub>2</sub> &nbsp;|&nbsp; Ask Spread = Ask<sub>1</sub> - Bid<sub>2</sub>
                         </div>
-                        
+
+
+
+                        <!-- Actual Position panel (APX vs CMX.MGC) -->
+                        <div id="actual-position-card" style="display:none; margin-top:1.25rem; padding:12px 14px; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.06); border-radius:8px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                                <span style="font-size:0.8rem; color:var(--text-muted); letter-spacing:0.5px;"><i class="fa-solid fa-clipboard-check"></i> ACTUAL POSITION <small id="actual-pos-syms" style="opacity:0.7;"></small></span>
+                                <button id="btn-refresh-position" class="btn btn-secondary btn-icon btn-xs" title="Refresh actual position costs">
+                                    <i class="fa-solid fa-rotate"></i>
+                                </button>
+                            </div>
+                            <div id="actual-pos-empty" style="color:var(--text-muted); font-size:0.85rem;">No open position.</div>
+                            <div id="actual-pos-body" style="display:none; font-family:'JetBrains Mono',monospace; font-size:0.8rem;">
+                                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:6px 16px;">
+                                    <div>Lots / oz: <span id="ap-lots" style="color:#fff;">-</span></div>
+                                    <div>Entry spread: <span id="ap-entry" style="color:#fff;">-</span></div>
+                                    <div>Current spread: <span id="ap-current" style="color:#fff;">-</span></div>
+                                    <div>Swap paid: <span id="ap-swap" style="color:#fff;">-</span></div>
+                                    <div>Commission (entry): <span id="ap-comm" style="color:#fff;">-</span></div>
+                                    <div>Floating P&amp;L: <span id="ap-float" style="color:#fff;">-</span></div>
+                                    <div>Net now: <span id="ap-netnow" style="color:#fff;">-</span></div>
+                                    <div>DTE: <span id="ap-dte" style="color:#fff;">-</span></div>
+                                    <div>Remaining swap: <span id="ap-remswap" style="color:#fff;">-</span></div>
+                                </div>
+                                <div style="margin-top:8px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.06);">
+                                    Projected net @ convergence: <span id="ap-projnet" style="font-size:1rem; font-weight:600;">-</span>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Historical Spread Chart -->
                         <div class="chart-container" style="margin-top: 1.5rem; height: 250px; width: 100%; position: relative;">
                             <canvas id="spreadChart"></canvas>
@@ -302,35 +362,48 @@
                 </div>
             </section>
 
-            <!-- Right Panel: Active Orders & Logs -->
-            <section class="panel panel-orders">
-                <!-- Active Orders list -->
-                <div class="sub-panel order-list-subpanel">
-                    <div class="panel-header">
-                        <h2><i class="fa-solid fa-list-check"></i> Active Trigger Orders</h2>
-                    </div>
-                    <div class="panel-body list-body">
-                        <div id="orders-placeholder" class="list-placeholder">
-                            <i class="fa-solid fa-circle-info"></i>
-                            <p>No active pending orders. Create one to begin.</p>
+            <!-- Right Panel: Trigger Orders & Logs (one combined box, collapses to the right) -->
+            <section class="panel panel-orders" id="right-panel" style="transition: all 0.3s ease; overflow: hidden; display: flex; flex-direction: column;">
+                <div class="panel-header" onclick="toggleRightPanel()" style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" title="Collapse to the right">
+                    <h2><i class="fa-solid fa-list-check"></i> Orders &amp; Event Log</h2>
+                    <i class="fa-solid fa-angles-right" style="color: var(--text-muted);"></i>
+                </div>
+
+                <div style="flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column;">
+                    <!-- Active Orders list -->
+                    <div class="sub-panel order-list-subpanel">
+                        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <h2 style="font-size: 0.9rem;"><i class="fa-solid fa-list-check"></i> Active Trigger Orders</h2>
                         </div>
-                        <div id="orders-container" class="orders-list-wrapper hidden">
+                        <div class="panel-body list-body" id="order-list-content">
+                            <div id="orders-placeholder" class="list-placeholder">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <p>No active pending orders. Create one to begin.</p>
+                            </div>
+                            <div id="orders-container" class="orders-list-wrapper hidden">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live logs -->
+                    <div class="sub-panel log-subpanel">
+                        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <h2 style="margin:0; font-size: 0.9rem;"><i class="fa-solid fa-terminal"></i> Terminal Event Log</h2>
+                            <button id="btn-clear-logs" class="btn btn-text" title="Clear console"><i class="fa-solid fa-trash-can"></i></button>
+                        </div>
+                        <div class="panel-body terminal-body" id="log-terminal">
                             <!-- Populated dynamically -->
                         </div>
                     </div>
                 </div>
-
-                <!-- Live logs -->
-                <div class="sub-panel log-subpanel">
-                    <div class="panel-header">
-                        <h2><i class="fa-solid fa-terminal"></i> Terminal Event Log</h2>
-                        <button id="btn-clear-logs" class="btn btn-text" title="Clear console"><i class="fa-solid fa-trash-can"></i></button>
-                    </div>
-                    <div class="panel-body terminal-body" id="log-terminal">
-                        <!-- Populated dynamically -->
-                    </div>
-                </div>
             </section>
+
+            <!-- Floating button to re-open the right panel when collapsed -->
+            <button id="btn-expand-right" onclick="toggleRightPanel()" title="Show Orders &amp; Event Log"
+                style="display: none; position: fixed; top: 90px; right: 12px; z-index: 900; align-items: center; gap: 6px; padding: 8px 12px; background: var(--color-primary, #10b981); color: #fff; border: none; border-radius: 6px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+                <i class="fa-solid fa-angles-left"></i> Orders &amp; Log
+            </button>
         </main>
     </div>
     <!-- Modal for Market Sessions -->
@@ -354,6 +427,6 @@
     </div>
 
     <div id="toast-container" class="toast-container"></div>
-    <script src="app.js?v=1.4"></script>
+    <script src="app.js?v=3.4"></script>
 </body>
 </html>

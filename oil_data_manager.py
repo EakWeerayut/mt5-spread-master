@@ -273,6 +273,83 @@ def get_chart_data():
         "traces_calendar": traces_calendar
     }
 
+# --- Series helpers (for the live Spread cards): oil = USOUSD.sc vs NYX.MCLE ---
+# USOUSD.sc has no commission and no swap; only the NYX.MCLE leg carries commission.
+from apx_data_manager import edge_pct_annualized, _edge_window_stats
+
+SPOT_SYM = "USOUSD.sc"
+PREFIX = "NYX.MCLE"
+SWAP_RATE = 0.0
+SWAP_BASIS = 360.0
+COMM_PER_OZ = 0.0642     # NYX.MCLE round-trip 6.42 / 100 barrels
+
+def _series_points():
+    """(t, spread = USO - NYX, dte, S = USO) offset-aware over all contracts."""
+    meta = load_meta()
+    uso_csv = os.path.join(DATA_DIR, f"{SPOT_SYM}.csv")
+    if not os.path.exists(uso_csv):
+        return []
+    rates_uso = pd.read_csv(uso_csv).to_dict('records')
+    if not rates_uso:
+        return []
+    latest_t_uso = max(int(r['time']) for r in rates_uso)
+    pts = []
+    for f in os.listdir(DATA_DIR):
+        if not (f.startswith(PREFIX) and f.endswith('.csv')):
+            continue
+        sym = f[:-4]
+        exp = meta.get(sym, {}).get("expiration_time", 0)
+        if not exp:
+            continue
+        rates_nyx = pd.read_csv(os.path.join(DATA_DIR, f)).to_dict('records')
+        if not rates_nyx:
+            continue
+        latest_t_nyx = max(int(r['time']) for r in rates_nyx)
+        offset = round((latest_t_uso - latest_t_nyx) / 3600) * 3600
+        map_uso = {int(r['time']) - offset: r['close'] for r in rates_uso}
+        for r in rates_nyx:
+            t = int(r['time'])
+            if t not in map_uso:
+                continue
+            st = time.gmtime(t)
+            if (st.tm_hour == 23 and st.tm_min == 45) or (st.tm_hour == 0 and st.tm_min in [0, 15]):
+                continue
+            dte = (exp - t) / 86400.0
+            if dte < 0:
+                continue
+            pts.append((t, map_uso[t] - r['close'], dte, map_uso[t]))
+    return pts
+
+def _reg():
+    reg_path = os.path.join(DATA_DIR, "regression.json")
+    if not os.path.exists(reg_path):
+        return None, None
+    reg = json.load(open(reg_path))
+    return reg.get("slope"), reg.get("intercept")
+
+def get_residuals():
+    m, c = _reg()
+    if not m:
+        return []
+    res = [spread - (m * dte + c) for t, spread, dte, S in _series_points()]
+    res.sort()
+    return res
+
+def get_edge_stats():
+    m, c = _reg()
+    if not m:
+        return {"error": "no regression"}
+    dte0 = max(-c / m, 0.0)
+    pct = []
+    for t, spread, dte, S in _series_points():
+        N = max(dte - dte0, 0.0)
+        edge = spread - S * SWAP_RATE / SWAP_BASIS * N - COMM_PER_OZ
+        ep = edge_pct_annualized(edge, S, N)
+        if ep is not None:
+            pct.append((t, ep))
+    return _edge_window_stats(pct) or {"error": "no points"}
+
+
 if __name__ == "__main__":
     # Test script standalone functionality
     fetch_and_store()

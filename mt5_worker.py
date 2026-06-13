@@ -7,14 +7,23 @@ import threading
 # Global variables
 subscribed_symbols = set()
 symbols_lock = threading.Lock()
+output_lock = threading.Lock()  # serialize stdout writes across threads
 initialized = False
 mt5_path = None
 
 def send_to_master(data):
-    """Sends JSON messages to the master process via stdout."""
+    """Sends JSON messages to the master process via stdout.
+
+    Must be atomic: the price-streamer thread and the command-handling thread both
+    write here, and interleaved writes corrupt the line-delimited JSON the master
+    parses (e.g. two objects glued onto one line). A lock + single write fixes it.
+    """
     try:
-        print(json.dumps(data), flush=True)
-    except Exception as e:
+        msg = json.dumps(data)
+        with output_lock:
+            sys.stdout.write(msg + "\n")
+            sys.stdout.flush()
+    except Exception:
         # If stdout is closed or error, exit
         sys.exit(1)
 
@@ -171,8 +180,14 @@ def handle_subscribe(params):
         })
         
     with symbols_lock:
+        already_subscribed = symbol in subscribed_symbols
         subscribed_symbols.add(symbol)
-        
+
+    # Already streaming: skip the expensive session recompute (6000 M5 bars) so the
+    # master can cheaply re-subscribe every poll (self-heals after a reconnect).
+    if already_subscribed:
+        return
+
     # Query symbol specifications
     info = mt5.symbol_info(symbol)
     if info:
@@ -436,6 +451,85 @@ def handle_trade(params):
             "volume": result.volume
         })
 
+def handle_get_position_costs(params):
+    """Reports REAL open-position costs for a symbol: net volume, avg entry,
+    accrued swap (position.swap), realized commission (from opening deals), and
+    floating profit. Used by the 'Actual' panel for the current position."""
+    symbol = params.get("symbol")
+    request_id = params.get("request_id")
+    broker_key = params.get("broker_key")
+    if not request_id:
+        return
+
+    out = {
+        "status": "position_costs_result",
+        "request_id": request_id,
+        "broker_key": broker_key,
+        "symbol": symbol,
+        "success": False,
+        "positions": [],
+        "net_volume": 0.0,
+        "avg_open": None,
+        "swap": 0.0,
+        "commission": 0.0,
+        "profit": 0.0,
+        "open_time": None,
+    }
+
+    if not initialized:
+        out["error"] = "MT5 Terminal not initialized"
+        send_to_master(out)
+        return
+
+    try:
+        positions = mt5.positions_get(symbol=symbol) or []
+        net_vol = 0.0
+        vol_abs = 0.0
+        weighted_open = 0.0
+        swap_sum = 0.0
+        profit_sum = 0.0
+        comm_sum = 0.0
+        earliest = None
+        pos_list = []
+
+        for p in positions:
+            is_buy = (p.type == mt5.POSITION_TYPE_BUY)
+            net_vol += p.volume if is_buy else -p.volume
+            vol_abs += p.volume
+            weighted_open += p.price_open * p.volume
+            swap_sum += p.swap
+            profit_sum += p.profit
+            if earliest is None or p.time < earliest:
+                earliest = p.time
+            # realized commission for this position (entry deal, negative)
+            deals = mt5.history_deals_get(position=p.ticket) or []
+            for d in deals:
+                comm_sum += d.commission
+            pos_list.append({
+                "ticket": p.ticket,
+                "type": "buy" if is_buy else "sell",
+                "volume": p.volume,
+                "price_open": p.price_open,
+                "swap": p.swap,
+                "profit": p.profit,
+                "time": int(p.time),
+            })
+
+        out.update({
+            "success": True,
+            "positions": pos_list,
+            "net_volume": round(net_vol, 2),
+            "avg_open": (weighted_open / vol_abs) if vol_abs else None,
+            "swap": round(swap_sum, 2),
+            "commission": round(comm_sum, 2),
+            "profit": round(profit_sum, 2),
+            "open_time": int(earliest) if earliest else None,
+        })
+    except Exception as e:
+        out["error"] = str(e)
+
+    send_to_master(out)
+
 def handle_get_history(params):
     symbol = params.get("symbol")
     request_id = params.get("request_id")
@@ -528,6 +622,8 @@ def main():
             handle_trade(msg)
         elif command == "get_history":
             handle_get_history(msg)
+        elif command == "get_position_costs":
+            handle_get_position_costs(msg)
         elif command == "shutdown":
             if initialized:
                 mt5.shutdown()
