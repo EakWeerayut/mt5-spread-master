@@ -1,0 +1,139 @@
+{
+  "external_btc": 6.9659,
+  "min_btc": 7.01,
+  "min_curve": [
+    {
+      "btc": 6.02,
+      "price": 100000
+    },
+    {
+      "btc": 5.53,
+      "price": 120000
+    },
+    {
+      "btc": 5.11,
+      "price": 144000
+    },
+    {
+      "btc": 4.76,
+      "price": 170000
+    },
+    {
+      "btc": 4.46,
+      "price": 200000
+    }
+  ],
+  "min_flat_price": 65000,
+  "hidden_scenarios": [],
+  "cover_price": 100000,
+  "future_adj": 1157,
+  "items": [
+    {
+      "type": "long_call",
+      "level": 60000,
+      "qty": 0.8,
+      "strike": 60000
+    },
+    {
+      "type": "short_call",
+      "level": 60000,
+      "qty": 0.8,
+      "strike": 80000
+    },
+    {
+      "type": "long_call",
+      "level": 55000,
+      "qty": 2,
+      "strike": 55000
+    },
+    {
+      "type": "short_call",
+      "level": 55000,
+      "qty": 1.5,
+      "strike": 80000
+    },
+    {
+      "type": "long_call",
+      "level": 50000,
+      "qty": 3.2,
+      "strike": 50000
+    },
+    {
+      "type": "long_call",
+      "level": 50000,
+      "qty": 0.5,
+      "strike": 100000
+    },
+    {
+      "type": "long_call",
+      "level": 50000,
+      "qty": 0.7,
+      "strike": 120000
+    },
+    {
+      "type": "long_call",
+      "level": 50000,
+      "qty": 0.6,
+      "strike": 140000
+    },
+    {
+      "type": "long_call",
+      "level": 50000,
+      "qty": 0.5,
+      "strike": 170000
+    },
+    {
+      "type": "long_call",
+      "level": 50000,
+      "qty": 0.4,
+      "strike": 190000
+    },
+    {
+      "type": "short_call",
+      "level": 50000,
+      "qty": 3.3,
+      "strike": 80000
+    },
+    {
+      "type": "long_future",
+      "level": 50000,
+      "qty": 2.62,
+      "strike": null
+    },
+    {
+      "type": "long_future",
+      "level": 45000,
+      "qty": 0.01,
+      "strike": null
+    },
+    {
+      "type": "short_put",
+      "level": 40000,
+      "qty": 0.6,
+      "strike": 45000
+    }
+  ],
+  "level_dates": [
+    {
+      "date": "2026-07-01",
+      "level": 60000
+    },
+    {
+      "date": "2026-11-01",
+      "level": 40000
+    },
+    {
+      "date": "2026-08-01",
+      "level": 55000
+    },
+    {
+      "date": "2026-09-01",
+      "level": 50000
+    },
+    {
+      "date": "2026-10-01",
+      "level": 45000
+    }
+  ],
+  "current_level": null
+}

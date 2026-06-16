@@ -1,0 +1,11 @@
+python-binance>=1.0.19
+MetaTrader5>=5.0.45
+gspread>=6.0.0
+google-auth>=2.27.0
+google-auth-oauthlib>=1.2.0
+python-dotenv>=1.0.0
+requests>=2.31.0
+Pillow>=10.0.0
+pypdf>=4.0.0
+pdfplumber>=0.11.0
+yfinance>=0.2.0

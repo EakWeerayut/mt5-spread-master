@@ -4,8 +4,8 @@
         "accountId": "vantage"
     },
     "broker2": {
-        "path": "C:\\MT5_Broker2\\terminal64.exe",
-        "accountId": "mts"
+        "path": "C:\\MT5_Broker1\\terminal64.exe",
+        "accountId": "vantage"
     },
     "favorites": [
         {

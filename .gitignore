@@ -13,6 +13,8 @@ temp.txt
 *.csv
 .sbi_cache.json
 .deribit_logs_cache.json
+.binance_logs_cache.json
+.binance_balances_db.json
 
 # Python
 __pycache__/

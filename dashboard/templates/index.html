@@ -1,0 +1,2294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deribit Options Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; overflow: hidden; }
+  body { background: #0d1117; color: #e6edf3; font-family: 'Segoe UI', sans-serif;
+         display: flex; flex-direction: column; }
+
+  .header {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 6px 8px; justify-content: flex-start; flex-wrap: wrap;
+    padding: 8px 12px; background: #161b22; border-bottom: 1px solid #30363d;
+  }
+  .header h1 { font-size: 16px; font-weight: 700; color: #f0b429; margin-right: 8px; }
+  .header-brand { display: flex; align-items: center; margin-right: 8px; flex-shrink: 0; }
+  .header-stats { display: flex; gap: 8px; align-items: center; }
+  .stat { text-align: center; display: flex; flex-direction: column; justify-content: center; background: #21262d; padding: 2px 6px; border-radius: 4px; }
+  .stat-label { font-size: 8px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 12px; font-weight: 700; margin-top: 1px; }
+  .stat-value.pos { color: #3fb950; }
+  .stat-value.neg { color: #f85149; }
+  .stat-value.neutral { color: #e6edf3; }
+
+  .refresh-btn {
+    background: #238636; color: #fff; border: none; padding: 4px 8px;
+    border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 500; height: 26px; white-space: nowrap; margin-left: 4px;
+  }
+  .refresh-btn:hover { background: #2ea043; }
+  .refresh-btn:disabled { background: #30363d; color: #8b949e; cursor: not-allowed; }
+
+  .loading {
+    display: flex; align-items: center; justify-content: center;
+    height: 60vh; font-size: 16px; color: #8b949e;
+  }
+
+  .main { display: none; }
+  .main.visible { display: flex; flex-direction: column; flex: 1; min-height: 0;
+                  overflow: hidden; padding: 12px 16px; }
+  .charts-row { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .panel { min-width: 0; overflow: hidden; flex: 1; min-height: 0;
+           display: flex; flex-direction: column; }
+  .panel-header { flex-shrink: 0; }
+  #ladderChart { flex: 1; min-height: 0; }
+
+  .panel {
+    background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 16px;
+  }
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+  }
+  .panel-title {
+    font-size: 13px; font-weight: 600; color: #8b949e;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .toggle-btn {
+    background: #21262d; border: 1px solid #30363d; color: #e6edf3;
+    padding: 4px 12px; border-radius: 5px; cursor: pointer; font-size: 12px;
+    transition: background 0.15s;
+  }
+  .toggle-btn.active { background: #1f3d2e; border-color: #3fb950; color: #3fb950; }
+  .toggle-btn:hover { background: #30363d; }
+
+  /* Strike Ladder */
+  #ladderChart { width: 100%; }
+
+  /* Payoff */
+  #payoffChart { width: 100%; }
+
+
+  .last-updated { font-size: 11px; color: #8b949e; margin-top: 12px; text-align: right; }
+
+  .error-banner {
+    background: #2d0f0f; border: 1px solid #f85149; border-radius: 6px;
+    padding: 12px 16px; color: #f85149; font-size: 13px; margin: 20px 24px;
+  }
+
+  /* Tabs */
+  .tab-nav { display: flex; gap: 4px; margin-left: 8px; }
+  .tab-btn {
+    background: transparent; border: none; color: #8b949e; padding: 4px 12px;
+    font-size: 14px; font-weight: 600; cursor: pointer; border-bottom: 3px solid transparent; height: 30px;
+  }
+  .tab-btn:hover { color: #e6edf3; }
+  .tab-btn.active { color: #f0b429; border-bottom-color: #f0b429; }
+
+  /* Wheel view */
+  #view-wheel { display: none; flex-direction: column; flex: 1; min-height: 0;
+                overflow: hidden; padding: 8px 16px; gap: 8px; }
+  #view-wheel.visible { display: flex; }
+  .wheel-top { display: contents; }
+  .wheel-field { display: flex; flex-direction: column; gap: 1px; }
+  .wheel-field label { font-size: 8px; color: #8b949e; text-transform: uppercase; letter-spacing: .2px;
+                       white-space: nowrap; }
+  .wheel-field input, .wheel-field select {
+    background: #0d1117; border: 1px solid #30363d; color: #e6edf3;
+    padding: 2px 4px; border-radius: 4px; font-size: 11px; width: 64px; height: 24px;
+  }
+  .wheel-stat { background: #161b22; border: 1px solid #30363d; border-radius: 4px;
+                padding: 2px 6px; display: flex; flex-direction: column; justify-content: center; height: 28px; }
+  .wheel-stat .l { font-size: 8px; color: #8b949e; text-transform: uppercase; white-space: nowrap; }
+  .wheel-stat .v { font-size: 11px; font-weight: 700; line-height: 1.1; }
+  /* Compact controls inside the top bar */
+  .wheel-top .toggle-btn { padding: 2px 6px; font-size: 11px; height: 24px; white-space: nowrap; display: flex; align-items: center; justify-content: center; }
+  .wheel-top #w-saved { font-size: 9px; white-space: nowrap; }
+  .wheel-snap select { padding: 2px 4px; min-width: 100px; font-size: 11px; height: 24px; }
+  .wheel-body { display: grid; grid-template-columns: 500px 1fr; gap: 12px; flex: 1; min-height: 0; }
+  .wheel-body.actions-hidden { grid-template-columns: 1fr; }
+  .wheel-body.actions-hidden .wheel-panel.actions { display: none; }
+  .wheel-panel { background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+                 padding: 12px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .wheel-panel h3 { font-size: 12px; color: #8b949e; text-transform: uppercase;
+                    letter-spacing: .5px; margin-bottom: 8px; display: flex;
+                    justify-content: space-between; align-items: center; flex-shrink: 0; }
+  .action-grid { overflow-y: auto; flex: 1; min-height: 0; }
+  .action-grid table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  .action-grid th { color: #8b949e; font-weight: 500; padding: 4px; text-align: center;
+                    position: sticky; top: 0; background: #161b22; }
+  .action-grid td { padding: 2px; text-align: center; }
+  .action-grid .lvl { font-weight: 700; color: #f0b429; text-align: right; padding-right: 6px; }
+  .action-grid input {
+    background: #0d1117; border: 1px solid #30363d; color: #e6edf3;
+    width: 52px; padding: 3px 4px; border-radius: 4px; font-size: 11px; text-align: center;
+  }
+  .action-grid input.qty { border-left: 2px solid #3fb950; }
+  .action-grid .sub { font-size: 9px; color: #6e7681; }
+  .action-grid .px { font-size: 11px; color: #58a6ff; text-align: center; }
+  .wheel-panel.actions { display: flex; flex-direction: column; }
+  .w-grid-scroll { flex: 1; min-height: 60px; overflow-y: auto; }
+  .w-grid-btns { flex-shrink: 0; display: flex; gap: 4px; padding-top: 8px;
+                 border-top: 1px solid #21262d; margin-top: 4px; }
+  #w-existing { flex-shrink: 0; max-height: 150px; overflow-y: auto; }
+  .exist-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; align-items: start; }
+  .exist-hdr { color: #f0b429; font-weight: 600; font-size: 10px; text-transform: uppercase;
+               margin-top: 4px; margin-bottom: 1px; }
+  .exist-tbl { width: 100%; border-collapse: collapse; font-size: 11px; color: #c9d1d9; }
+  .exist-tbl th { color: #6e7681; font-weight: 500; font-size: 9px; text-align: right;
+                  padding: 0 3px; }
+  .exist-tbl th:first-child { text-align: left; }
+  .exist-tbl td { padding: 0 3px; white-space: nowrap; }
+  .exist-tbl b { font-weight: 600; }
+  .action-grid td { vertical-align: top; }
+  .action-grid select {
+    background: #0d1117; border: 1px solid #30363d; color: #e6edf3;
+    padding: 3px 4px; border-radius: 4px; font-size: 11px;
+  }
+  .action-grid .it-qty { width: 50px; }
+  .action-grid .it-strike { width: 64px; }
+  .action-grid .it-del {
+    background: transparent; border: none; color: #8b949e; cursor: pointer;
+    font-size: 12px; padding: 2px 4px;
+  }
+  .action-grid .it-del:hover { color: #f85149; }
+  #wheelChart { flex: 1; min-height: 0; min-width: 0; }
+  .wheel-checks { display: flex; flex-wrap: wrap; gap: 4px 12px; flex-shrink: 0; margin-bottom: 6px; }
+  .wheel-checks label { display: flex; align-items: center; gap: 4px; font-size: 11px;
+                        color: #c9d1d9; cursor: pointer; }
+  .wheel-checks input { accent-color: #3fb950; cursor: pointer; }
+  .wheel-snap { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+  .wheel-snap select { background: #0d1117; border: 1px solid #30363d; color: #e6edf3;
+                       padding: 5px 6px; border-radius: 5px; font-size: 12px; min-width: 150px; }
+  /* Right-side control cluster: scenarios row + optimise card, stacked & right-aligned */
+  .wheel-right { display: flex; flex-direction: row;
+                 align-items: center; gap: 4px; }
+  .wheel-right .wheel-snap { margin-left: 0; display: flex; align-items: center; gap: 4px; }
+  .wheel-opt { display: flex; align-items: center; gap: 4px;
+               background: #0d1117; border: 1px solid #30363d; border-radius: 4px;
+               padding: 2px 4px; height: 26px; }
+  .wheel-opt-tag { font-size: 8px; font-weight: 700; color: #f0b429;
+                   letter-spacing: .5px; white-space: nowrap; }
+  .wheel-opt select, .wheel-opt input { background: #010409; border: 1px solid #30363d;
+                   color: #e6edf3; padding: 0 4px; border-radius: 4px; font-size: 11px; height: 24px; }
+  .wheel-opt select { min-width: 60px; }
+  .wheel-opt input { width: 64px; }
+  .wheel-opt .toggle-btn.gen { background: #1f3d2e; border-color: #3fb950; color: #3fb950;
+                   font-weight: 600; font-size: 11px; height: 24px; padding: 0 6px; display: flex; align-items: center; justify-content: center; }
+  .wheel-opt .toggle-btn.gen:hover { background: #2a5740; }
+  .wheel-opt #w-genStatus { max-width: 150px; overflow: hidden; text-overflow: ellipsis;
+                   white-space: nowrap; font-size: 9px; }
+  .opt-lock { display: flex; align-items: center; gap: 3px; font-size: 10px; color: #8b949e; }
+  .opt-lock label { display: flex; align-items: center; gap: 1px; cursor: pointer; }
+  .opt-lock input { accent-color: #f0b429; cursor: pointer; margin: 0; width: auto; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(1,4,9,0.7);
+                   display: none; align-items: center; justify-content: center; z-index: 200; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #161b22; border: 1px solid #30363d; border-radius: 10px;
+           width: min(760px, 94vw); max-height: 86vh; overflow: auto; padding: 18px; }
+  .modal h3 { color: #f0b429; font-size: 15px; }
+  .snap-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .snap-table th { text-align: left; color: #8b949e; font-weight: 600; padding: 6px 8px;
+                   border-bottom: 1px solid #30363d; text-transform: uppercase; font-size: 10px; }
+  .snap-table td { padding: 7px 8px; border-bottom: 1px solid #21262d; vertical-align: middle; }
+  .snap-table tr:hover td { background: #0d1117; }
+  .snap-name { font-weight: 600; color: #e6edf3; }
+  .snap-meta { font-size: 10px; color: #8b949e; }
+  .snap-table .mini { padding: 3px 8px; font-size: 11px; margin-right: 3px; }
+  .snap-pass { color: #3fb950; } .snap-fail { color: #f85149; }
+  .wheel-checks .dot { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .wheel-warn { color: #f85149; font-size: 12px; }
+  .wheel-ok { color: #3fb950; font-size: 12px; }
+  .ptable { font-size: 10px; color: #6e7681; margin-top: 6px; max-height: 90px; overflow-y: auto; }
+
+  /* Wheel (secured-check) view */
+  #view-secured { display: none; flex-direction: column; flex: 1; min-height: 0;
+                  overflow: hidden; padding: 12px 16px; }
+  #view-secured.visible { display: flex; }
+  .sec-body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex: 1; min-height: 0; }
+  #securedChart, #securedPutChart { flex: 1; min-height: 0; }
+  .sec-verdict { font-size: 13px; font-weight: 600; margin-bottom: 8px; flex-shrink: 0; }
+  .sec-verdict.ok { color: #3fb950; }
+  .sec-verdict.warn { color: #f85149; }
+  /* View-only (shared) mode: hide every editing/writing affordance. */
+  body.view-only .vo-hide { display: none !important; }
+  body.view-only #w-grid .it-del { display: none !important; }
+  body.view-only #w-grid input,
+  body.view-only #w-grid select { pointer-events: none; }
+  .vo-badge { display: none; }
+  body.view-only .vo-badge { display: inline-block; margin-left: 8px;
+    padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;
+    color: #58a6ff; border: 1px solid #58a6ff66; background: #58a6ff14; }
+
+  /* ---- Mobile / narrow screens -------------------------------------------
+     The desktop layout is viewport-locked (overflow:hidden) with side-by-side
+     panels. On phones we let the whole page scroll, stack the panels into one
+     column, and give the Plotly charts an explicit height so they don't
+     collapse once they're no longer flex-stretched. */
+  @media (max-width: 820px) {
+    html, body { overflow-x: hidden; overflow-y: auto; height: auto; }
+    body { min-height: 100%; }
+
+    .header { padding: 8px; }
+    .header h1 { font-size: 15px; }
+    .header-stats { flex-wrap: wrap; gap: 6px; }
+
+    /* Views grow with content and scroll with the page (no inner clipping) */
+    .main.visible, #view-wheel.visible, #view-secured.visible {
+      height: auto; min-height: 0; overflow: visible; padding: 8px;
+    }
+
+    /* Collapse the two-pane grids into a single column */
+    .wheel-body, .wheel-body.actions-hidden { grid-template-columns: 1fr; }
+    .sec-body { grid-template-columns: 1fr; }
+
+    /* On phones, show the equity chart first, then the Buy Actions panel */
+    .wheel-body > .wheel-panel.actions { order: 1; }
+
+    /* Wheel tab: stack the two verdicts instead of cramming them side-by-side */
+    .sec-verdicts { flex-direction: column; gap: 4px; }
+    .sec-verdicts .sec-verdict { text-align: left !important; }
+    .sec-verdict { font-size: 12px; }
+
+    /* Let the panel headers wrap instead of overflowing */
+    .wheel-panel h3 { flex-wrap: wrap; }
+    .wheel-panel h3 .sub[id="sec-call-lvl"] { margin-left: 0; }
+
+    /* Premium table is 7 wide columns — let it scroll horizontally + shrink */
+    #combined-premium-container { overflow-x: auto; }
+    #combined-premium-container table { font-size: 12px !important; }
+    #combined-premium-container th,
+    #combined-premium-container td { padding-left: 6px !important; padding-right: 6px !important; }
+
+    /* Panels: auto height, and min-width:0 so the grid item can shrink below
+       its (wide) content instead of overflowing the single column. */
+    .panel, .wheel-panel { overflow: visible; min-height: 0; min-width: 0; }
+
+    /* Charts need a concrete height once they're not flex-stretched, and
+       min-width:0 so Plotly sizes to the column, not its intrinsic width. */
+    #wheelChart, #securedChart, #securedPutChart, #ladderChart, #payoffChart {
+      flex: none; height: 72vw; min-height: 300px; max-height: 440px; min-width: 0;
+    }
+
+    /* Existing positions flow into the page scroll; the dense buy-actions
+       table keeps its own horizontal scroll so it can't widen the page. */
+    .w-grid-scroll, #w-existing { flex: none; max-height: none; overflow: visible; }
+    .action-grid { flex: none; max-height: none; overflow-x: auto; overflow-y: visible; }
+    .exist-2col { grid-template-columns: 1fr; }
+
+    /* Finger-friendly tap targets */
+    .wheel-field input, .wheel-field select,
+    .action-grid input, .action-grid select,
+    .toggle-btn, .refresh-btn, .tab-btn { min-height: 34px; }
+    .wheel-field input, .wheel-field select { font-size: 14px; width: 76px; }
+    .action-grid input, .action-grid select { font-size: 13px; }
+    .action-grid .it-qty { width: 60px; }
+    .action-grid .it-strike { width: 76px; }
+    .tab-btn { font-size: 15px; }
+  }
+</style>
+</head>
+<body class="{{ 'view-only' if view_only else '' }}">
+<script>window.VIEW_ONLY = {{ 'true' if view_only else 'false' }};</script>
+
+<div class="header">
+  <div class="header-brand">
+    <h1>⚡ Deribit Options</h1>
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="wheel" onclick="showTab('wheel')">Strategy</button>
+      <button class="tab-btn" data-tab="secured" onclick="showTab('secured')">Wheel</button>
+    </div>
+  </div>
+  <div class="header-stats">
+    <div class="stat">
+      <div class="stat-label">BTC Index</div>
+      <div class="stat-value neutral" id="btcPrice">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Net Delta (BTC)</div>
+      <div class="stat-value" id="netDelta">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Wheel Pst</div>
+      <div class="stat-value neutral" id="wheelPos">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Strategy Pst</div>
+      <div class="stat-value neutral" id="stratPos">—</div>
+    </div>
+  </div>
+  <div class="wheel-top" id="wheelTopBar">
+    <div class="wheel-field">
+      <label>Ext BTC</label>
+      <input type="number" step="0.0001" id="w-externalBtc" oninput="onWheelEdit()">
+    </div>
+    <div class="wheel-stat">
+      <div class="l">Deribit Balance</div>
+      <div class="v neutral" id="w-balance">—</div>
+    </div>
+    <div class="wheel-stat">
+      <div class="l">Usable BTC</div>
+      <div class="v" id="w-usable">—</div>
+    </div>
+    <div class="wheel-field">
+      <label>MIN BTC <span class="sub" id="w-minMode"></span></label>
+      <div style="display:flex;gap:4px">
+        <input type="number" step="0.01" id="w-minBtc" oninput="onWheelEdit()" style="flex:1">
+        <button class="toggle-btn" onclick="openMinEditor()" title="Set minimum BTC by price">⚙ by price</button>
+      </div>
+    </div>
+    <div class="wheel-field">
+      <label>Long Future <span class="sub" id="w-futActual"></span></label>
+      <input type="number" step="1" id="w-futAdj" oninput="onWheelEdit()"
+             title="Adjusted long-future notional. Removed part is closed at the current price.">
+    </div>
+    <div class="wheel-field">
+      <label>Covered Price</label>
+      <input type="number" step="5000" id="w-coverPrice" placeholder="off" oninput="onWheelEdit()"
+             title="Short calls with strike >= this price are treated as covered: above the strike the BTC is delivered (leaves the stack), no cash-settled P&L.">
+    </div>
+    <div class="wheel-field">
+      <label>Current level</label>
+      <select id="w-curLevel" onchange="onCurrentLevelChange()"
+              title="The level the market has already dropped to. Higher levels/scenarios are no longer reachable and are removed."></select>
+    </div>
+    <div class="wheel-stat">
+      <div class="l">Worst-case vs Min</div>
+      <div class="v" id="w-check">—</div>
+    </div>
+    <button class="toggle-btn active vo-hide" onclick="saveWheel()">💾 Save</button>
+    <span class="last-updated" id="w-saved"></span>
+    <span class="vo-badge">👁 view only</span>
+    <div class="wheel-right">
+      <div class="wheel-snap">
+        <select id="w-snapSel" title="Saved scenarios"></select>
+        <button class="toggle-btn" onclick="loadSnapshot()" title="Load selected scenario (restores config + prices + positions)">📂 Load</button>
+        <button class="toggle-btn vo-hide" onclick="saveSnapshot()" title="Snapshot current state (config + prices + positions/orders) as a named scenario">📸 Save</button>
+        <button class="toggle-btn vo-hide" onclick="openSnapMgr()" title="Manage saved scenarios">⚙</button>
+      </div>
+      <div class="wheel-opt vo-hide" id="w-optBox">
+        <span class="wheel-opt-tag">⚙ OPTIMIZE</span>
+        <select id="w-optLine"
+                title="Which equity line to shape: it gets peak@$peak + a flat plateau up to the cover price. ALL lines are kept ≥ Usable BTC (to cover) and ≥ the Min-BTC floor (to $200k).">
+          <option value="low50">low 50k</option>
+          <option value="low55">low 55k</option>
+          <option value="low60">low 60k</option>
+          <option value="low45">low 45k</option>
+          <option value="low40">low 40k</option>
+          <option value="never">low 65k</option>
+        </select>
+        <input type="number" step="1000" id="w-optPeak" value="80000"
+               title="Plateau peak price (default $80,000)">
+        <span class="opt-lock" title="Lock levels: keep their current buy actions unchanged (the optimiser only designs the unlocked levels)">🔒
+          <label><input type="checkbox" class="lock-lv" value="60000">60</label>
+          <label><input type="checkbox" class="lock-lv" value="55000">55</label>
+          <label><input type="checkbox" class="lock-lv" value="50000">50</label>
+          <label><input type="checkbox" class="lock-lv" value="45000">45</label>
+          <label><input type="checkbox" class="lock-lv" value="40000">40</label>
+        </span>
+        <button class="toggle-btn gen" id="w-genBtn" onclick="generateScenario()"
+                title="Run the optimiser on the current on-screen state and save it as an auto-named scenario (e.g. 50K-2606110914). Other parameters come from the fields on this page.">Generate</button>
+        <span class="last-updated" id="w-genStatus"></span>
+      </div>
+    </div>
+  </div>
+  <button class="refresh-btn vo-hide" id="refreshBtn" onclick="loadData(true)" title="Fetch live positions/orders + recompute option prices from Deribit">↻ Refresh</button>
+</div>
+
+<div class="loading" id="loading">Connecting to Deribit...</div>
+<div id="errorBanner" class="error-banner" style="display:none"></div>
+
+<div class="main" id="main">
+  <div class="charts-row">
+    <div class="panel">
+      <div class="panel-header">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="panel-title">Strike Ladder</div>
+          <span class="last-updated" id="lastUpdated"></span>
+        </div>
+        <button class="toggle-btn active" id="pendingToggle" onclick="togglePending()">◻ Pending Orders</button>
+      </div>
+      <div id="ladderChart"></div>
+    </div>
+  </div>
+
+</div>
+
+<div id="view-wheel">
+
+
+  <div class="modal-overlay" id="minEditor" onclick="if(event.target===this)closeMinEditor()">
+    <div class="modal" style="width:min(440px,92vw)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0">Minimum BTC by Price</h3>
+        <button class="toggle-btn" onclick="closeMinEditor()">✕ Close</button>
+      </div>
+      <div class="snap-meta" style="margin-bottom:8px">
+        Below the threshold price the flat <b>Min BTC</b> applies; at/above it the points below are used (interpolated).
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+        <span class="snap-meta">Flat min applies below BTC $</span>
+        <input type="number" step="5000" id="w-minFlatPrice" style="width:90px"
+          oninput="_wheelCfg.min_flat_price=parseFloat(this.value)||0; afterMinEdit();">
+      </div>
+      <div id="minRows"></div>
+      <button class="toggle-btn" style="margin-top:8px" onclick="addMinRow()">+ Add price point</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="levelDates" onclick="if(event.target===this)closeLevelDates()">
+    <div class="modal" style="width:min(440px,92vw)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0">Level dates</h3>
+        <button class="toggle-btn" onclick="closeLevelDates()">✕ Close</button>
+      </div>
+      <div class="snap-meta" style="margin-bottom:8px">
+        The month each level is expected to be reached (day 1 of the month). Premiums are
+        repriced at the time remaining to expiry. Levels above the highest / below the lowest
+        anchor use that anchor's date; levels in between are interpolated by price. No anchors → priced today.
+      </div>
+      <div id="levelDateRows"></div>
+      <button class="toggle-btn" style="margin-top:8px" onclick="addLevelDate()">+ Add level date</button>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="snapMgr" onclick="if(event.target===this)closeSnapMgr()">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0">Saved Scenarios</h3>
+        <button class="toggle-btn" onclick="closeSnapMgr()">✕ Close</button>
+      </div>
+      <div id="snapMgrBody">Loading…</div>
+    </div>
+  </div>
+
+  <div class="wheel-body" id="w-body">
+    <div class="wheel-panel actions">
+      <h3>Buy Actions <span class="sub" id="w-priceage"></span></h3>
+      <div class="action-grid w-grid-scroll" id="w-grid"></div>
+      <div class="w-grid-btns vo-hide">
+        <button class="toggle-btn" onclick="addItem()">+ Add action</button>
+        <button class="toggle-btn" onclick="sortGrid()" title="Sort by level (high→low)">↕ Sort by level</button>
+        <button class="toggle-btn" onclick="openLevelDates()" title="Set the month each level is expected to be reached; premiums are repriced at the remaining time to expiry">📅 Level dates</button>
+        <button class="toggle-btn" id="w-undoBtn" onclick="undoItems()" title="Undo last change" disabled>↶ Undo</button>
+      </div>
+      <h3 style="margin-top:12px">Existing Positions <span class="sub">25Dec26 · 26Mar27</span></h3>
+      <div class="action-grid" id="w-existing"></div>
+    </div>
+    <div class="wheel-panel">
+      <h3>Net Equity @ 26Mar27 (BTC) — by lowest price reached
+        <span style="display:flex;gap:6px;align-items:center">
+          <button class="toggle-btn" id="w-hideBtn" onclick="toggleActions()">⮜ Hide actions</button>
+          <button class="toggle-btn" onclick="setAllScenarios(true)">All</button>
+          <button class="toggle-btn" onclick="setAllScenarios(false)">None</button>
+          <span class="sub" style="margin-left:8px">equity @ $</span>
+          <input type="number" step="5000" id="w-refPrice" value="80000" style="width:78px"
+                 oninput="computeWheel()" title="Reference BTC price shown next to each line in the legend">
+        </span>
+      </h3>
+      <div id="w-checks" class="wheel-checks"></div>
+      <div id="wheelChart"></div>
+    </div>
+  </div>
+</div>
+
+<div id="view-secured">
+  <div class="sec-body" style="grid-template-columns: 1fr;">
+    <div class="wheel-panel sec-combined">
+      <h3>Options Secured 
+        <span class="sub" style="margin-left: 8px;">Puts vs planned LC/LF cover | Calls vs strategy gap</span>
+        <span class="sub" id="sec-call-lvl" style="margin-left: auto;"></span>
+      </h3>
+      <div class="sec-verdicts" style="display:flex; justify-content:space-between; margin-bottom: 8px;">
+        <div id="sec-put-verdict" class="sec-verdict" style="text-align:left; margin-bottom: 0;"></div>
+        <div id="sec-call-verdict" class="sec-verdict" style="text-align:right; margin-bottom: 0;"></div>
+      </div>
+      <div id="securedChart" style="flex: 1; min-height: 350px;"></div>
+      <div id="combined-premium-container"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const EXPIRY_COLORS = [
+  '#f0b429','#3fb950','#58a6ff','#f78166','#d2a8ff','#79c0ff','#ffa657','#56d364'
+];
+
+function parseInstrument(name) {
+  // BTC-5JUN26-65000-P  or  BTC-PERPETUAL
+  const parts = name.split('-');
+  if (parts.length < 4) return null;
+  return {
+    currency: parts[0],
+    expiry: parts[1],
+    strike: parseInt(parts[2]),
+    type: parts[3], // C or P
+  };
+}
+
+// '25DEC26' -> Date(2026, 11, 25)
+const _MONTHS = { JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11 };
+function expiryDate(exp) {
+  const m = (exp || '').match(/^(\d+)([A-Z]{3})(\d{2})$/);
+  if (!m || !(m[2] in _MONTHS)) return null;
+  return new Date(2000 + parseInt(m[3]), _MONTHS[m[2]], parseInt(m[1]));
+}
+
+// Remaining (still-pending) size of an open order = total amount − already filled.
+// All order-quantity logic uses this so partially-filled orders count only the unfilled part.
+function ordAmt(o) {
+  return Math.max((o.amount || 0) - (o.filled_amount || 0), 0);
+}
+
+
+function sortExpiries(expirySet) {
+  const monthOrder = {JAN:1,FEB:2,MAR:3,APR:4,MAY:5,JUN:6,JUL:7,AUG:8,SEP:9,OCT:10,NOV:11,DEC:12};
+  return [...expirySet].sort((a, b) => {
+    const mA = a.match(/(\d+)([A-Z]+)(\d+)/), mB = b.match(/(\d+)([A-Z]+)(\d+)/);
+    if (!mA || !mB) return 0;
+    if (mA[3] !== mB[3]) return parseInt(mA[3]) - parseInt(mB[3]);
+    if (mA[2] !== mB[2]) return (monthOrder[mA[2]]||0) - (monthOrder[mB[2]]||0);
+    return parseInt(mA[1]) - parseInt(mB[1]);
+  });
+}
+
+// Global state for toggle + re-render
+let _ladderState = null;
+let _showPending = true;
+let _ladderObserver = null;
+
+function togglePending() {
+  _showPending = !_showPending;
+  const btn = document.getElementById('pendingToggle');
+  btn.classList.toggle('active', _showPending);
+  btn.textContent = (_showPending ? '◻' : '◼') + ' Pending Orders';
+  if (_ladderState) renderLadder(_ladderState.positions, _ladderState.orders, _ladderState.currentPrice);
+}
+
+function renderLadder(positions, orders, currentPrice) {
+  _ladderState = { positions, orders, currentPrice };
+
+  const options = positions.filter(p => parseInstrument(p.instrument));
+  const pendingOptions = _showPending ? orders.filter(o => parseInstrument(o.instrument)) : [];
+
+  // Build a map: strikeKey -> { position, pendingList }
+  const posMap = {};
+  options.forEach(p => {
+    const info = parseInstrument(p.instrument);
+    const key = `${info.strike}_${info.type}_${info.expiry}`;
+    posMap[key] = { pos: p, info, pending: [] };
+  });
+  pendingOptions.forEach(o => {
+    const info = parseInstrument(o.instrument);
+    const key = `${info.strike}_${info.type}_${info.expiry}`;
+    if (!posMap[key]) posMap[key] = { pos: null, info, pending: [] };
+    posMap[key].pending.push(o);
+  });
+
+  const expirySet = sortExpiries([...new Set(Object.values(posMap).map(v => v.info.expiry))]);
+  const colorMap = {};
+  expirySet.forEach((exp, i) => { colorMap[exp] = EXPIRY_COLORS[i % EXPIRY_COLORS.length]; });
+
+  // Determine bar width: 1.8% of strike range, min 1500
+  const allStrikes = Object.values(posMap).map(v => v.info.strike);
+  const strikeRange = Math.max(...allStrikes) - Math.min(...allStrikes);
+  const BAR_WIDTH = Math.max(1500, strikeRange * 0.018);
+
+  // Calculate x-axis range including full extent of positions + pending on each side
+  const strikeExtents = {};
+  Object.values(posMap).forEach(v => {
+    const sKey = `${v.info.strike}_${v.info.type}`;
+    if (!strikeExtents[sKey]) strikeExtents[sKey] = { pos: 0, neg: 0 };
+    const size = v.pos ? v.pos.size : 0;
+    if (size >= 0) strikeExtents[sKey].pos += size;
+    else strikeExtents[sKey].neg += size;
+    v.pending.forEach(o => {
+      const amt = o.direction === 'buy' ? ordAmt(o) : -ordAmt(o);
+      if (amt >= 0) strikeExtents[sKey].pos += amt;
+      else strikeExtents[sKey].neg += amt;
+    });
+  });
+  const allExtents = Object.values(strikeExtents).flatMap(e => [e.pos, e.neg]);
+  const xMax = Math.max(0.1, ...allExtents.map(Math.abs)) * 1.15;
+
+  const traces = [];
+
+  // Track cumulative base separately for long (+) and short (-) sides
+  // so they never net each other — each side stacks in its own direction
+  const cumPos = {}; // long side: grows positive from 0
+  const cumNeg = {}; // short side: grows negative from 0
+
+  // --- Position bars (solid) — one trace per expiry ---
+  expirySet.forEach(expiry => {
+    const entries = Object.values(posMap).filter(v => v.info.expiry === expiry && v.pos);
+    if (!entries.length) return;
+    const x = [], y = [], base = [], text = [], customdata = [], widths = [];
+    entries.forEach(({ pos, info }) => {
+      const sKey = `${info.strike}_${info.type}`;
+      const isLong = pos.size >= 0;
+      const b = isLong ? (cumPos[sKey] || 0) : (cumNeg[sKey] || 0);
+      const pnlUsd = pos.floating_pnl * currentPrice;
+      x.push(pos.size);
+      y.push(info.strike);
+      base.push(b);
+      widths.push(BAR_WIDTH);
+      // Label only on the first segment of each side
+      text.push(b === 0 ? `${info.strike.toLocaleString()} ${info.type}` : '');
+      customdata.push(
+        `<b>${pos.instrument}</b><br>` +
+        `Size: ${pos.size > 0 ? '+' : ''}${pos.size} BTC<br>` +
+        `Entry: ${pos.average_price.toFixed(4)} BTC<br>` +
+        `Mark: ${pos.mark_price.toFixed(4)} BTC<br>` +
+        `Float PnL: ${pnlUsd >= 0 ? '+' : ''}$${pnlUsd.toFixed(0)}<br>` +
+        `Delta: ${pos.delta > 0 ? '+' : ''}${pos.delta.toFixed(4)}`
+      );
+      if (isLong) cumPos[sKey] = (cumPos[sKey] || 0) + pos.size;
+      else cumNeg[sKey] = (cumNeg[sKey] || 0) + pos.size;
+    });
+    traces.push({
+      type: 'bar', orientation: 'h',
+      name: expiry, legendgroup: expiry,
+      x, y, base, width: widths, text, customdata,
+      textposition: 'inside',
+      insidetextanchor: 'middle',
+      textfont: { size: 9, color: '#0d1117' },
+      cliponaxis: true,
+      hovertemplate: '%{customdata}<extra></extra>',
+      marker: { color: colorMap[expiry], opacity: 0.85 },
+    });
+  });
+
+  // Pending orders start from end of their respective side
+  const pendingPos = { ...cumPos };
+  const pendingNeg = { ...cumNeg };
+
+  // --- Pending order bars (outline, stacked from position end) ---
+  if (_showPending) {
+    expirySet.forEach(expiry => {
+      const entries = Object.values(posMap).filter(v => v.info.expiry === expiry && v.pending.length);
+      if (!entries.length) return;
+      const x = [], y = [], base = [], text = [], widths = [];
+      entries.forEach(({ pos, info, pending }) => {
+        const sKey = `${info.strike}_${info.type}`;
+        // Each pending order extends from its own side's end
+        pending.forEach(o => {
+          const isBuy = o.direction === 'buy';
+          const b = isBuy ? (pendingPos[sKey] || 0) : (pendingNeg[sKey] || 0);
+          const ra = ordAmt(o);
+          const amt = isBuy ? ra : -ra;
+          const netAfter = b + amt;
+          x.push(amt);
+          y.push(info.strike);
+          base.push(b);
+          widths.push(BAR_WIDTH);
+          text.push(
+            `<b>PENDING — ${info.expiry} ${info.strike.toLocaleString()} ${info.type}</b><br>` +
+            `${o.direction.toUpperCase()} ${(+ra.toFixed(4))} @ ${o.price} BTC<br>` +
+            `After fill: ${netAfter > 0 ? '+' : ''}${netAfter.toFixed(2)} BTC`
+          );
+          if (isBuy) pendingPos[sKey] = (pendingPos[sKey] || 0) + amt;
+          else pendingNeg[sKey] = (pendingNeg[sKey] || 0) + amt;
+        });
+      });
+      traces.push({
+        type: 'bar', orientation: 'h',
+        name: `${expiry} (pending)`, legendgroup: expiry,
+        showlegend: false,
+        x, y, base, width: widths, text,
+        hovertemplate: '%{text}<extra></extra>',
+        marker: {
+          color: 'rgba(0,0,0,0)',
+          line: { color: colorMap[expiry], width: 2 },
+          pattern: { shape: '/', size: 4, solidity: 0.3, fgcolor: colorMap[expiry] },
+        },
+      });
+    });
+  }
+
+  const yMin = Math.min(...allStrikes) - 5000;
+  const yMax = Math.max(...allStrikes) + 5000;
+
+  const layout = {
+    paper_bgcolor: 'transparent',
+    plot_bgcolor: 'transparent',
+    font: { color: '#e6edf3', size: 11 },
+    margin: { l: 70, r: 20, t: 20, b: 50 },
+    barmode: 'overlay',
+    autosize: true,
+    xaxis: {
+      title: '← short  |  Size (BTC)  |  long →',
+      gridcolor: '#30363d', zerolinecolor: '#8b949e',
+      tickfont: { size: 10 },
+      range: [-xMax, xMax],
+      fixedrange: true,
+    },
+    yaxis: {
+      title: 'Strike (USD)',
+      gridcolor: '#30363d',
+      tickfont: { size: 10 },
+      tickformat: ',.0f',
+      range: [yMin, yMax],
+      fixedrange: true,
+    },
+    legend: {
+      bgcolor: 'transparent', font: { size: 10 },
+      orientation: 'h', y: -0.08,
+    },
+    shapes: [{
+      type: 'line',
+      x0: -xMax, x1: xMax, xref: 'x',
+      y0: currentPrice, y1: currentPrice, yref: 'y',
+      line: { color: '#f0b429', width: 1.5, dash: 'dot' },
+    }],
+    annotations: [{
+      x: 1, xref: 'paper', y: currentPrice, yref: 'y',
+      text: `  $${currentPrice.toLocaleString(undefined,{maximumFractionDigits:0})}`,
+      showarrow: false, font: { size: 10, color: '#f0b429' }, xanchor: 'left',
+    }],
+  };
+
+  const ladderEl = document.getElementById('ladderChart');
+  _ladderEl = ladderEl;
+  Plotly.newPlot(ladderEl, traces, layout, { displayModeBar: false, responsive: true })
+    .then(() => Plotly.Plots.resize(ladderEl));
+
+  // Observe the container so Plotly always matches its actual rendered size.
+  // Handles initial flex settling, window resize, and toggle re-layout in one place.
+  if (!_ladderObserver) {
+    _ladderObserver = new ResizeObserver(() => {
+      if (ladderEl.data) Plotly.Plots.resize(ladderEl);
+    });
+    _ladderObserver.observe(ladderEl);
+  }
+}
+
+
+// Render header stats + ladder chart + data timestamp from _appData.
+function renderLadderFromData() {
+  const data = _appData;
+  const positions = data.open_positions || [];
+  const orders = data.open_orders || [];
+  const options = positions.filter(p => parseInstrument(p.instrument));
+  const currentPrice = positions[0]?.index_price || 0;
+
+  document.getElementById('btcPrice').textContent =
+    '$' + currentPrice.toLocaleString(undefined, {maximumFractionDigits: 0});
+
+  const netDelta = options.reduce((s, p) => s + (p.delta || 0), 0);
+  const deltaEl = document.getElementById('netDelta');
+  deltaEl.textContent = (netDelta >= 0 ? '+' : '') + netDelta.toFixed(4);
+  deltaEl.className = 'stat-value ' + (netDelta >= 0 ? 'pos' : 'neg');
+
+  // Split option positions by expiry: Wheel = before 25Dec26, Strategy = 25Dec26 onward
+  const cutoff = new Date(2026, 11, 25);  // 25 Dec 2026
+  let wheel = 0, strat = 0;
+  options.forEach(p => {
+    const d = expiryDate(parseInstrument(p.instrument).expiry);
+    if (!d) return;
+    if (d < cutoff) wheel++; else strat++;
+  });
+  document.getElementById('wheelPos').textContent = wheel;
+  document.getElementById('stratPos').textContent = strat;
+  // Strike Ladder page is hidden; skip rendering its chart (header stats above stay live).
+
+  const fetched = data._fetched_at ? new Date(data._fetched_at).toLocaleString() : '—';
+  document.getElementById('lastUpdated').textContent =
+    'Deribit data: ' + fetched + (data._stale_error ? ' (stale)' : '') +
+    (data._snapshot ? ' · snapshot: ' + data._snapshot : '');
+}
+
+async function loadData(live = false) {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.textContent = live ? 'Refreshing…' : 'Loading…';
+  document.getElementById('errorBanner').style.display = 'none';
+  // Only show the full-screen loader on first load (when there's no data yet)
+  if (!_appData) {
+    document.getElementById('loading').style.display = 'flex';
+    document.getElementById('main').classList.remove('visible');
+  }
+
+  try {
+    const res = await fetch(live ? '/api/data?refresh=1' : '/api/data');
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    _appData = data;
+    renderLadderFromData();
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main').classList.remove('visible');  // Strike Ladder hidden
+
+    await initWheel();   // first load: builds wheel; later: just recomputes with fresh data
+    showTab('wheel');    // Wheel is the only page now
+    if (live) await refreshPrices();   // one button refreshes both Deribit data + option prices
+  } catch (err) {
+    document.getElementById('loading').style.display = 'none';
+    const banner = document.getElementById('errorBanner');
+    banner.textContent = '⚠ Error: ' + err.message;
+    banner.style.display = 'block';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ Refresh';
+  }
+}
+
+// ============================ WHEEL STRATEGY ============================
+let _appData = null;
+let _wheelCfg = null;
+let _priceTable = null;
+let _wheelObserver = null;
+let _wheelInited = false;
+let _saveTimer = null;
+let _undoStack = [];      // history of items arrays for the Undo button
+let _lastUndoTime = 0;
+
+function pushUndo() {
+  _undoStack.push(JSON.parse(JSON.stringify(_wheelCfg.items || [])));
+  if (_undoStack.length > 50) _undoStack.shift();
+  updateUndoBtn();
+}
+// Coalesce rapid typing into a single undo step.
+function maybePushUndo() {
+  const now = Date.now();
+  if (now - _lastUndoTime > 700) pushUndo();
+  _lastUndoTime = now;
+}
+function undoItems() {
+  if (!_undoStack.length) return;
+  _wheelCfg.items = _undoStack.pop();
+  buildGrid();
+  computeWheel();
+  scheduleSave();
+}
+
+const W_LEVELS = [65000,60000,55000,50000,45000,40000,35000,30000];
+// Scenario = lowest level reached. 65000 is the "stayed high" case (price never
+// dropped below 65k); only 65k-level buy actions fire in it.
+const W_SCENARIOS = [65000,60000,55000,50000,45000,40000,35000,30000,25000,20000,15000];
+const W_TYPES = {
+  long_call:   ['Long Call',   '26Mar27 C'],
+  short_call:  ['Short Call',  '26Mar27 C'],
+  long_future: ['Long Future', '—'],
+  short_put:   ['Short Put',   '25Dec26 P'],
+};
+
+// Current level: the price the market has already dropped to (Part 4).
+// null = "never < 60k" (no level passed yet). Levels/scenarios above it are no
+// longer reachable and are dropped from the grid and the equity chart.
+function curMaxLevel() {
+  const c = _wheelCfg && _wheelCfg.current_level;
+  return (c == null) ? 65000 : c;
+}
+function activeScenarios() {
+  const m = curMaxLevel();
+  return W_SCENARIOS.filter(X => (X == null ? 60000 : X) <= m);
+}
+function activeLevels() {
+  const m = curMaxLevel();
+  const lvls = W_LEVELS.filter(l => l <= m);
+  // Include the current level itself as a selectable option, even when it is a
+  // deep scenario value not in the standard W_LEVELS (e.g. 25k/20k/15k), so buy
+  // actions can target the level the market has already dropped to.
+  const c = _wheelCfg && _wheelCfg.current_level;
+  if (c != null && !lvls.includes(c)) {
+    lvls.push(c);
+    lvls.sort((a, b) => b - a);   // keep descending
+  }
+  return lvls;
+}
+
+// Old config used actions[level][key]; migrate to a flat item list.
+function ensureItems() {
+  // Already migrated (non-empty list) -> just drop any legacy field.
+  if (Array.isArray(_wheelCfg.items) && _wheelCfg.items.length) {
+    delete _wheelCfg.actions;
+    return;
+  }
+  const acts = _wheelCfg.actions || {};
+  const items = [];
+  for (const [lvl, keys] of Object.entries(acts)) {
+    for (const [key, f] of Object.entries(keys)) {
+      if (!f || !f.qty) continue;
+      const type = key === 'short_put2' ? 'short_put' : key;
+      items.push({ type, level: parseInt(lvl), qty: f.qty,
+                   strike: type === 'long_future' ? null : (f.strike ?? parseInt(lvl)) });
+    }
+  }
+  _wheelCfg.items = items;
+  delete _wheelCfg.actions;
+}
+
+function showTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === name));
+  document.getElementById('main').classList.toggle('visible', name === 'ladder');
+  document.getElementById('view-wheel').classList.toggle('visible', name === 'wheel');
+  document.getElementById('view-secured').classList.toggle('visible', name === 'secured');
+  
+  const topBar = document.getElementById('wheelTopBar');
+  if (topBar) topBar.style.display = (name === 'wheel') ? 'contents' : 'none';
+
+  if (name === 'wheel') {
+    if (_wheelEl && _wheelEl.data) Plotly.Plots.resize(_wheelEl);
+    computeWheel();
+  } else if (name === 'secured') {
+    renderSecured();
+    if (_securedEl && _securedEl.data) Plotly.Plots.resize(_securedEl);
+  } else if (_ladderEl && _ladderEl.data) {
+    Plotly.Plots.resize(_ladderEl);
+  }
+}
+
+async function initWheel() {
+  if (_wheelInited) { computeWheel(); return; }
+  _wheelInited = true;
+  // Load saved config + cached price table in parallel
+  const [cfgRes, ptRes] = await Promise.all([
+    fetch('/api/wheel/config').then(r => r.json()).catch(() => null),
+    fetch('/api/wheel/pricetable').then(r => r.json()).catch(() => null),
+  ]);
+  _wheelCfg = cfgRes || { external_btc: 0, min_btc: 1.0, items: [] };
+  _priceTable = (ptRes && !ptRes.error) ? ptRes : null;
+  renderWheelUI();
+  refreshSnapshotList();
+}
+
+// Populate the wheel DOM from the current _wheelCfg / _priceTable (reused by snapshot load).
+function renderWheelUI() {
+  document.getElementById('w-externalBtc').value = (_wheelCfg.external_btc ?? 0);
+  document.getElementById('w-minBtc').value = _wheelCfg.min_btc ?? 1.0;
+  const nMin = (_wheelCfg.min_curve || []).filter(p => p && p.price != null).length;
+  document.getElementById('w-minMode').textContent = nMin ? `(${nMin}-pt curve)` : '';
+
+  const fp0 = futuresPosition();
+  document.getElementById('w-futAdj').value =
+    (_wheelCfg.future_adj != null ? _wheelCfg.future_adj : Math.round(fp0.notional));
+  document.getElementById('w-coverPrice').value =
+    (_wheelCfg.cover_price != null ? _wheelCfg.cover_price : '');
+  updateFutLabel();
+
+  _wheelHidden = new Set(_wheelCfg.hidden_scenarios || []);  // restore checkbox state
+  _undoStack = [];        // fresh undo history per loaded config/scenario
+  ensureItems();          // migrate old actions-object format if present
+  // Drop any saved buy actions above the current level (Part 4).
+  _wheelCfg.items = (_wheelCfg.items || []).filter(it => it.level <= curMaxLevel());
+  sortItems();            // tidy grouping on load (new adds during session stay at bottom)
+  renderCurLevelSel();
+  buildGrid();
+  renderExisting();
+  renderPriceTable();
+  renderWheelChecks();
+  readGridIntoConfig();   // sync items + current_btc / min_btc from DOM before first compute
+  computeWheel();
+  renderSecured();
+}
+
+// Level colour = the matching "low Xk" scenario line colour on the equity chart.
+function levelColor(L) {
+  const i = W_SCENARIOS.indexOf(L);
+  return i >= 0 ? W_PALETTE[i % W_PALETTE.length] : '#8b949e';
+}
+const W_TYPE_ORDER = { long_call: 0, short_call: 1, long_future: 2, short_put: 3 };
+const W_TYPE_COLORS = {
+  long_call: '#3fb950', short_call: '#f85149',
+  long_future: '#58a6ff', short_put: '#ffa657',
+};
+
+function sortItems() {
+  (_wheelCfg.items || []).sort((a, b) =>
+    (b.level - a.level) ||
+    ((W_TYPE_ORDER[a.type] ?? 9) - (W_TYPE_ORDER[b.type] ?? 9)) ||
+    ((a.strike || 0) - (b.strike || 0)));
+}
+
+function buildGrid() {
+  const items = _wheelCfg.items || [];
+  let html = '<table><thead><tr>' +
+    '<th>Action</th><th>Level</th><th>Qty</th><th>Strike</th><th>Premium</th><th></th>' +
+    '</tr></thead><tbody>';
+  items.forEach((it, idx) => html += itemRow(it, idx));
+  html += '</tbody></table>';
+  document.getElementById('w-grid').innerHTML = html;
+  updateGridPrices();
+  updateUndoBtn();
+  renderExisting();   // refresh "closed by buy actions" amounts
+}
+
+function updateUndoBtn() {
+  const b = document.getElementById('w-undoBtn');
+  if (b) b.disabled = !_undoStack.length;
+}
+
+function itemRow(it, idx) {
+  const typeOpts = Object.entries(W_TYPES).map(([k, v]) =>
+    `<option value="${k}" ${k === it.type ? 'selected' : ''}>${v[0]}</option>`).join('');
+  // Only levels at/below the current level are selectable; keep the item's own
+  // level visible even if stale so the row renders until it is pruned/changed.
+  const lvls = activeLevels();
+  if (!lvls.includes(it.level)) lvls.unshift(it.level);
+  const lvlOpts = lvls.map(l =>
+    `<option value="${l}" ${l === it.level ? 'selected' : ''}>${l.toLocaleString()}</option>`).join('');
+  const isFut = it.type === 'long_future';
+  const strikeCell = isFut ? '<span class="sub">—</span>' :
+    `<input class="it-strike" type="number" step="5000" value="${it.strike ?? it.level}"
+       data-idx="${idx}" oninput="onItemInput()">`;
+  const lc = levelColor(it.level);
+  const tc = W_TYPE_COLORS[it.type] || '#e6edf3';
+  return `<tr>
+    <td style="border-left:3px solid ${lc}"><select class="it-type" data-idx="${idx}" onchange="onItemStructChange()"
+        style="color:${tc};border-color:${tc};font-weight:600">${typeOpts}</select>
+        <div class="sub">${W_TYPES[it.type][1]}</div></td>
+    <td style="background:${lc}22"><select class="it-level" data-idx="${idx}" onchange="onItemStructChange()" style="border-color:${lc}">${lvlOpts}</select></td>
+    <td><input class="it-qty" type="number" step="0.1" placeholder="qty" value="${it.qty ?? ''}"
+         data-idx="${idx}" oninput="onItemInput()"></td>
+    <td>${strikeCell}</td>
+    <td class="px" data-idx="${idx}"></td>
+    <td><button class="it-del" title="remove" onclick="deleteItem(${idx})">✕</button></td>
+  </tr>`;
+}
+
+function readGridIntoConfig() {
+  const rows = {};
+  document.querySelectorAll('#w-grid [data-idx]').forEach(el => {
+    const idx = el.dataset.idx;
+    rows[idx] = rows[idx] || {};
+    if (el.classList.contains('it-type')) rows[idx].type = el.value;
+    else if (el.classList.contains('it-level')) rows[idx].level = parseInt(el.value);
+    else if (el.classList.contains('it-qty')) rows[idx].qty = el.value === '' ? null : parseFloat(el.value);
+    else if (el.classList.contains('it-strike')) rows[idx].strike = el.value === '' ? null : parseInt(el.value);
+  });
+  _wheelCfg.items = Object.keys(rows).sort((a, b) => a - b).map(k => {
+    const r = rows[k];
+    return { type: r.type, level: r.level, qty: r.qty,
+             strike: r.type === 'long_future' ? null : (r.strike ?? r.level) };
+  });
+  _wheelCfg.external_btc = parseFloat(document.getElementById('w-externalBtc').value) || 0;
+  _wheelCfg.min_btc = parseFloat(document.getElementById('w-minBtc').value) || 0;
+  const fa = parseFloat(document.getElementById('w-futAdj').value);
+  _wheelCfg.future_adj = isNaN(fa) ? null : fa;
+  const cp = parseFloat(document.getElementById('w-coverPrice').value);
+  _wheelCfg.cover_price = isNaN(cp) ? null : cp;
+}
+
+// Show existing 25Dec26 / 26Mar27 positions (+ pending orders) so the user sees
+// what the buy actions add to / offset.
+function renderExisting() {
+  const el = document.getElementById('w-existing');
+  if (!el || !_appData) return;
+  const rows = [];
+  const collect = (arr, isOrder) => (arr || []).forEach(p => {
+    const info = parseInstrument(p.instrument);
+    if (!info || !['25DEC26', '26MAR27'].includes(info.expiry)) return;
+    const size = isOrder ? ordAmt(p) : Math.abs(p.size || 0);
+    rows.push({ expiry: info.expiry, strike: info.strike, type: info.type,
+                dir: p.direction, size, isOrder });
+  });
+  collect(_appData.open_positions, false);
+  collect(_appData.open_orders, true);
+  if (!rows.length) { el.innerHTML = '<div class="snap-meta">No 25Dec26 / 26Mar27 positions.</div>'; return; }
+
+  const cp = _wheelCfg.cover_price;
+  const fmtK = k => k >= 1000 ? (k / 1000) + 'k' : k;
+  const byType = (a, b) => (a.type < b.type ? -1 : a.type > b.type ? 1 : 0) || (a.strike - b.strike);
+  // How much of this existing position the buy actions offset (opposite dir, same exp+type+strike).
+  const closingQty = r => {
+    let q = 0;
+    (_wheelCfg.items || []).forEach(it => {
+      if (!it.qty) return;
+      let iexp, itype, idir;
+      if (it.type === 'long_call') { iexp = '26MAR27'; itype = 'C'; idir = 'buy'; }
+      else if (it.type === 'short_call') { iexp = '26MAR27'; itype = 'C'; idir = 'sell'; }
+      else if (it.type === 'short_put') { iexp = '25DEC26'; itype = 'P'; idir = 'sell'; }
+      else return;  // long_future doesn't close options
+      if (iexp === r.expiry && itype === r.type && it.strike === r.strike && idir !== r.dir) q += it.qty;
+    });
+    return q;
+  };
+  const row = r => {
+    const long = r.dir === 'buy';
+    const sgn = long ? '+' : '−';
+    const col = long ? '#3fb950' : '#f85149';
+    const covered = (r.type === 'C' && r.expiry === '26MAR27' && cp && r.strike >= cp);
+    const tag = (r.isOrder ? '<span class="sub">ᵒ</span>' : '') +
+                (covered ? '<span class="sub" style="color:#f0b429">ᶜ</span>' : '');
+    const closed = closingQty(r);
+    const rem = r.size - closed;                 // remaining open (negative = over-ordered)
+    let netTxt;
+    if (rem < -1e-9) {                            // buy actions exceed the existing position
+      const over = +(-rem).toFixed(2);
+      netTxt = `<span style="color:#f85149" title="over-ordered by ${over}">−${over}</span>`;
+    } else if (rem < 1e-9) {
+      netTxt = '<span class="sub">0</span>';
+    } else {
+      netTxt = `<span style="color:${col}">${sgn}${(+rem.toFixed(2))}</span>`;
+    }
+    const closedTxt = closed > 0 ? `<span style="color:#f0b429">${+closed.toFixed(2)}</span>` : '<span class="sub">·</span>';
+    return `<tr><td>${fmtK(r.strike)} ${r.type}${tag}</td>` +
+           `<td style="color:${col};text-align:right">${sgn}${r.size}</td>` +
+           `<td style="text-align:right">${closedTxt}</td>` +
+           `<td style="text-align:right">${netTxt}</td></tr>`;
+  };
+  const table = (exp, title) => {
+    const items = rows.filter(r => r.expiry === exp).sort(byType);
+    if (!items.length) return '';
+    return `<div><div class="exist-hdr">${title}</div>` +
+      `<table class="exist-tbl"><thead><tr><th></th><th>pos</th><th>cls</th><th>net</th></tr></thead>` +
+      `<tbody>${items.map(row).join('')}</tbody></table></div>`;
+  };
+  // Two tables side by side, one per expiry date
+  el.innerHTML = `<div class="exist-2col">${table('26MAR27', '26 Mar 27')}${table('25DEC26', '25 Dec 26')}</div>`;
+}
+
+function updateGridPrices() {
+  document.querySelectorAll('#w-grid td.px[data-idx]').forEach(el => {
+    const it = (_wheelCfg.items || [])[+el.dataset.idx];
+    if (!it) { el.textContent = ''; return; }
+    if (it.type === 'long_future') { el.textContent = '—'; return; }
+    const K = it.strike ?? it.level;
+    let px = (it.type === 'short_put') ? putPrice(it.level, K) : callPrice(it.level, K);
+    el.textContent = px ? px.toFixed(4) : '·';
+  });
+}
+
+function addItem() {
+  readGridIntoConfig();
+  pushUndo();
+  const L = activeLevels()[0] || curMaxLevel();   // highest level still reachable
+  _wheelCfg.items.push({ type: 'long_call', level: L, qty: null, strike: L });
+  buildGrid();   // appended at the bottom (no auto-sort)
+}
+
+function sortGrid() {
+  readGridIntoConfig();
+  pushUndo();
+  sortItems();
+  buildGrid();
+  computeWheel();
+  scheduleSave();
+}
+
+function deleteItem(idx) {
+  readGridIntoConfig();
+  pushUndo();
+  _wheelCfg.items.splice(idx, 1);
+  buildGrid();
+  computeWheel();
+  scheduleSave();
+}
+
+// Type change toggles the strike field -> rebuild the rows. Keeps focus loss minimal.
+function onItemStructChange() {
+  pushUndo();              // capture state before the select change is read
+  readGridIntoConfig();
+  buildGrid();
+  computeWheel();
+  scheduleSave();
+}
+
+// Qty / strike / level edits: recompute without rebuilding (preserve focus).
+function onItemInput() {
+  maybePushUndo();         // coalesced: one undo step per typing burst
+  readGridIntoConfig();
+  updateGridPrices();
+  renderExisting();        // update "closed" amounts as qty/strike change
+  computeWheel();
+  scheduleSave();
+}
+
+function scheduleSave() {
+  if (window.VIEW_ONLY) return;        // read-only share: never write back
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(saveWheel, 1200);
+}
+
+// Top control inputs (current BTC / min BTC)
+function onWheelEdit() {
+  _wheelCfg.external_btc = parseFloat(document.getElementById('w-externalBtc').value) || 0;
+  _wheelCfg.min_btc = parseFloat(document.getElementById('w-minBtc').value) || 0;
+  const fa = parseFloat(document.getElementById('w-futAdj').value);
+  _wheelCfg.future_adj = isNaN(fa) ? null : fa;
+  const cp = parseFloat(document.getElementById('w-coverPrice').value);
+  _wheelCfg.cover_price = isNaN(cp) ? null : cp;
+  updateFutLabel();
+  renderExisting();   // refresh 'cov' tags
+  computeWheel();
+  scheduleSave();
+}
+
+// Current-level dropdown (Part 4): options are the scenario "lowest reached" levels.
+function renderCurLevelSel() {
+  const sel = document.getElementById('w-curLevel');
+  if (!sel) return;
+  const cur = _wheelCfg.current_level;
+  sel.innerHTML = W_SCENARIOS.map(X =>
+    `<option value="${X == null ? '' : X}" ${(X == null ? null : X) === (cur == null ? null : cur) ? 'selected' : ''}>${scenName(X)}</option>`
+  ).join('');
+}
+
+// Changing the current level prunes now-unreachable buy actions + scenario lines.
+function onCurrentLevelChange() {
+  readGridIntoConfig();
+  pushUndo();
+  const v = document.getElementById('w-curLevel').value;
+  _wheelCfg.current_level = v === '' ? null : parseInt(v);
+  const m = curMaxLevel();
+  _wheelCfg.items = (_wheelCfg.items || []).filter(it => it.level <= m);
+  // Any hidden-scenario names that are no longer active can stay; they just won't render.
+  buildGrid();
+  renderWheelChecks();
+  computeWheel();
+  renderSecured();
+  scheduleSave();
+}
+
+// Sub-label under the Long Future input: actual notional + how much was removed
+function updateFutLabel() {
+  const fp = futuresPosition();
+  const adj = (_wheelCfg.future_adj != null && !isNaN(_wheelCfg.future_adj))
+    ? _wheelCfg.future_adj : fp.notional;
+  const removed = Math.round(fp.notional - adj);
+  const el = document.getElementById('w-futActual');
+  if (!el) return;
+  // Compact: just show how much was removed (if any). Kept value is in the input.
+  el.textContent = removed ? `(−${Math.abs(removed).toLocaleString()})` : '';
+}
+
+function renderPriceTable() {
+  if (!_priceTable) { document.getElementById('w-priceage').textContent=''; return; }
+  // Only the SPOT label in the Buy Actions header (premium reference list removed).
+  document.getElementById('w-priceage').textContent =
+    `spot $${(_priceTable.spot||0).toLocaleString(undefined,{maximumFractionDigits:0})}`;
+}
+
+async function refreshPrices() {
+  document.getElementById('w-priceage').textContent = 'refreshing…';
+  const pt = await fetch('/api/wheel/pricetable?refresh=1').then(r => r.json()).catch(() => null);
+  if (pt && !pt.error) { _priceTable = pt; renderPriceTable(); updateGridPrices(); computeWheel(); }
+  else document.getElementById('w-priceage').textContent = 'refresh failed';
+}
+
+async function saveWheel() {
+  if (window.VIEW_ONLY) return;        // read-only share: never write back
+  readGridIntoConfig();
+  await fetch('/api/wheel/config', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(_wheelCfg),
+  }).catch(()=>{});
+  document.getElementById('w-saved').textContent = 'saved ' + new Date().toLocaleTimeString();
+}
+
+// ---- Minimum-BTC-by-price editor ----
+function openMinEditor() {
+  if (!_wheelCfg.min_curve) _wheelCfg.min_curve = [];
+  if (_wheelCfg.min_flat_price == null) _wheelCfg.min_flat_price = 65000;
+  document.getElementById('w-minFlatPrice').value = _wheelCfg.min_flat_price;
+  renderMinRows();
+  document.getElementById('minEditor').classList.add('open');
+}
+function closeMinEditor() { document.getElementById('minEditor').classList.remove('open'); }
+
+function renderMinRows() {
+  const c = _wheelCfg.min_curve || [];
+  document.getElementById('minRows').innerHTML = c.length
+    ? c.map((p, i) => `<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">
+        <span class="snap-meta" style="width:60px">BTC $</span>
+        <input type="number" step="5000" value="${p.price}" style="width:90px"
+          oninput="setMinRow(${i},'price',this.value)">
+        <span class="snap-meta" style="width:50px;text-align:right">min</span>
+        <input type="number" step="0.01" value="${p.btc}" style="width:80px"
+          oninput="setMinRow(${i},'btc',this.value)">
+        <span class="snap-meta">BTC</span>
+        <button class="it-del" onclick="delMinRow(${i})">✕</button></div>`).join('')
+    : '<div class="snap-meta">No points — using flat min above.</div>';
+}
+function addMinRow() {
+  _wheelCfg.min_curve = _wheelCfg.min_curve || [];
+  _wheelCfg.min_curve.push({ price: 200000, btc: _wheelCfg.min_btc || 7.0 });
+  _wheelCfg.min_curve.sort((a, b) => a.price - b.price);
+  renderMinRows(); afterMinEdit();
+}
+function delMinRow(i) { _wheelCfg.min_curve.splice(i, 1); renderMinRows(); afterMinEdit(); }
+function setMinRow(i, f, v) {
+  _wheelCfg.min_curve[i][f] = parseFloat(v) || 0;
+  afterMinEdit();
+}
+function afterMinEdit() {
+  const n = (_wheelCfg.min_curve || []).filter(p => p.price != null).length;
+  document.getElementById('w-minMode').textContent = n ? `(${n}-pt curve)` : '';
+  computeWheel();
+  scheduleSave();
+}
+
+// ---- Level-dates editor (Part 1): month each level is reached -> repricing time ----
+function openLevelDates() {
+  if (!_wheelCfg.level_dates) _wheelCfg.level_dates = [];
+  renderLevelDateRows();
+  document.getElementById('levelDates').classList.add('open');
+}
+function closeLevelDates() { document.getElementById('levelDates').classList.remove('open'); }
+
+function renderLevelDateRows() {
+  const c = _wheelCfg.level_dates || [];
+  const lvlOpts = (sel) => W_LEVELS.map(l =>
+    `<option value="${l}" ${l === sel ? 'selected' : ''}>${l.toLocaleString()}</option>`).join('');
+  document.getElementById('levelDateRows').innerHTML = c.length
+    ? c.map((p, i) => `<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px">
+        <span class="snap-meta" style="width:46px">level</span>
+        <select style="width:96px" onchange="setLevelDate(${i},'level',this.value)">${lvlOpts(p.level)}</select>
+        <span class="snap-meta" style="width:42px;text-align:right">month</span>
+        <input type="month" value="${(p.date || '').slice(0, 7)}" style="width:130px"
+          onchange="setLevelDate(${i},'date',this.value)">
+        <button class="it-del" onclick="delLevelDate(${i})">✕</button></div>`).join('')
+    : '<div class="snap-meta">No anchors — all levels priced as of today.</div>';
+}
+function addLevelDate() {
+  _wheelCfg.level_dates = _wheelCfg.level_dates || [];
+  // Default new anchor to the current level (or 60k) at next month.
+  const d = new Date(); d.setMonth(d.getMonth() + 1);
+  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  _wheelCfg.level_dates.push({ level: curMaxLevel(), date: iso });
+  _wheelCfg.level_dates.sort((a, b) => b.level - a.level);
+  renderLevelDateRows(); afterLevelDateEdit();
+}
+function delLevelDate(i) { _wheelCfg.level_dates.splice(i, 1); renderLevelDateRows(); afterLevelDateEdit(); }
+function setLevelDate(i, f, v) {
+  if (f === 'level') _wheelCfg.level_dates[i].level = parseInt(v);
+  else _wheelCfg.level_dates[i].date = v ? `${v}-01` : null;   // month input -> day 1
+  afterLevelDateEdit();
+}
+function afterLevelDateEdit() {
+  // Reprice the grid premiums + equity lines with the new per-level dates.
+  updateGridPrices();
+  computeWheel();
+  renderSecured();
+  scheduleSave();
+}
+
+// ---- Scenario snapshots (full state: config + price table + positions/orders) ----
+async function refreshSnapshotList() {
+  const list = await fetch('/api/wheel/snapshots').then(r => r.json()).catch(() => []);
+  const sel = document.getElementById('w-snapSel');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— scenarios —</option>' +
+    list.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+async function saveSnapshot() {
+  const name = prompt('Save current state as scenario name:');
+  if (!name) return;
+  readGridIntoConfig();
+  // Min settings + view prefs are global/current — never frozen into a scenario.
+  const cfg = { ..._wheelCfg };
+  delete cfg.min_btc; delete cfg.min_curve; delete cfg.min_flat_price;
+  delete cfg.hidden_scenarios; delete cfg.cover_price;
+  delete cfg.level_dates; delete cfg.current_level;   // global, not frozen per scenario
+  const snapshot = {
+    config: cfg,
+    price_table: _priceTable,
+    data: _appData,
+    saved_at: new Date().toISOString(),
+  };
+  await fetch('/api/wheel/snapshot', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name, snapshot }),
+  }).catch(() => {});
+  await refreshSnapshotList();
+  document.getElementById('w-snapSel').value = name;
+  document.getElementById('w-saved').textContent = 'scenario "' + name + '" saved';
+}
+
+// Run the optimiser on the current on-screen state. The server shapes the chosen
+// line (peak + flat plateau) while keeping every line >= usable and >= min floor,
+// saves it as an auto-named scenario (e.g. 50K-2606110914), then we load it.
+function _fmtMargin(x) { return x == null ? '?' : (x >= 0 ? '+' : '') + x.toFixed(3); }
+async function generateScenario() {
+  if (!_wheelCfg || !_appData || !_priceTable) { alert('Data not loaded yet'); return; }
+  const line = document.getElementById('w-optLine').value;
+  const peak = parseInt(document.getElementById('w-optPeak').value) || 80000;
+  const lockLevels = [...document.querySelectorAll('.lock-lv:checked')].map(c => parseInt(c.value));
+  const btn = document.getElementById('w-genBtn');
+  const status = document.getElementById('w-genStatus');
+  readGridIntoConfig();                     // sync any pending grid edits into _wheelCfg
+  btn.disabled = true; const label = btn.textContent; btn.textContent = '⏳ Generating…';
+  status.innerHTML = 'optimising ' + line
+    + (lockLevels.length ? ' (lock ' + lockLevels.map(l => l / 1000).join(',') + ')' : '')
+    + '… (may take ~10–20s)';
+  try {
+    const res = await fetch('/api/wheel/optimize', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: _wheelCfg, data: _appData, price_table: _priceTable,
+                             lines: [line], peak, lock_levels: lockLevels }),
+    });
+    const j = await res.json();
+    if (j.error) throw new Error(j.error);
+    const v = j.verify || {};
+    await refreshSnapshotList();
+    document.getElementById('w-snapSel').value = j.name;
+    status.innerHTML = (v.ok ? '<span class="wheel-ok">✓ ' : '<span class="wheel-warn">⚠ ')
+      + j.name + '</span> · ≥usable ' + _fmtMargin(v.t3_worst)
+      + ' · ≥floor ' + _fmtMargin(v.t45_worst)
+      + ' · gap ' + _fmtMargin(v.gap_worst)
+      + ' · mono ' + _fmtMargin(v.mono_worst);
+    await loadSnapshot(j.name);             // show the optimised curves right away
+  } catch (e) {
+    status.innerHTML = '<span class="wheel-warn">✗ ' + e.message + '</span>';
+  } finally {
+    btn.disabled = false; btn.textContent = label;
+  }
+}
+
+async function loadSnapshot(name) {
+  name = name || document.getElementById('w-snapSel').value;
+  if (!name) { alert('Select a scenario first'); return; }
+  const snap = await fetch('/api/wheel/snapshot/' + encodeURIComponent(name)).then(r => r.json());
+  if (!snap || snap.error) { alert('Could not load scenario'); return; }
+  // Keep the CURRENT min settings — they are global, not part of a scenario.
+  const keepMin = {
+    min_btc: _wheelCfg.min_btc,
+    min_curve: _wheelCfg.min_curve,
+    min_flat_price: _wheelCfg.min_flat_price,
+    hidden_scenarios: _wheelCfg.hidden_scenarios,
+    cover_price: _wheelCfg.cover_price,
+    level_dates: _wheelCfg.level_dates,
+    current_level: _wheelCfg.current_level,
+  };
+  // Restore the full state captured in the snapshot
+  _appData = snap.data || _appData;
+  if (_appData) _appData._snapshot = name;
+  _priceTable = snap.price_table || _priceTable;
+  _wheelCfg = Object.assign(snap.config || _wheelCfg, keepMin);
+  renderLadderFromData();   // header + ladder from snapshot positions/orders
+  renderWheelUI();          // grid + prices + equity from snapshot config/prices
+  document.getElementById('w-snapSel').value = name;
+  document.getElementById('w-saved').textContent = 'loaded "' + name + '"';
+}
+
+// ---- Scenario manager modal ----
+// Compute worst (10-100k) + target(50k->80k) for a snapshot without disturbing live state.
+function snapMetrics(snap) {
+  const save = { d: _appData, p: _priceTable, c: _wheelCfg };
+  // Always evaluate against the CURRENT min settings, not the snapshot's.
+  const liveMin = {
+    min_btc: _wheelCfg.min_btc,
+    min_curve: _wheelCfg.min_curve,
+    min_flat_price: _wheelCfg.min_flat_price,
+    cover_price: _wheelCfg.cover_price,
+    level_dates: _wheelCfg.level_dates,
+    current_level: _wheelCfg.current_level,
+  };
+  try {
+    _appData = snap.data; _priceTable = snap.price_table;
+    _wheelCfg = Object.assign({}, snap.config, liveMin);
+    if (!_appData || !_priceTable || !snap.config) return null;
+    const usable = (_wheelCfg.external_btc || 0) + deribitBalance();
+    let margin = Infinity;   // min (equity − live min floor) over the full 200k range
+    for (let P = 10000; P <= W_XMAX; P += 2000)
+      for (const X of W_SCENARIOS) {
+        const f = X == null ? 60000 : X;
+        if (P >= f) margin = Math.min(margin, equityAt(P, X, usable) - minAt(P));
+      }
+    return { margin, target: equityAt(80000, 50000, usable), usable };
+  } catch (e) { return null; }
+  finally { _appData = save.d; _priceTable = save.p; _wheelCfg = save.c; }
+}
+
+async function openSnapMgr() {
+  document.getElementById('snapMgr').classList.add('open');
+  const body = document.getElementById('snapMgrBody');
+  body.textContent = 'Loading…';
+  const list = await fetch('/api/wheel/snapshots').then(r => r.json()).catch(() => []);
+  if (!list.length) { body.innerHTML = '<div class="snap-meta">No saved scenarios yet.</div>'; return; }
+  const full = await Promise.all(list.map(s =>
+    fetch('/api/wheel/snapshot/' + encodeURIComponent(s.name)).then(r => r.json()).then(d => ({ s, d }))));
+  let rows = '';
+  full.forEach(({ s, d }) => {
+    const m = snapMetrics(d);
+    const nItems = (d.config && d.config.items || []).length;
+    const when = s.saved_at ? new Date(s.saved_at).toLocaleString() : '—';
+    const metric = m
+      ? `<span class="${m.margin >= 0 ? 'snap-pass' : 'snap-fail'}">margin ${m.margin >= 0 ? '+' : ''}${m.margin.toFixed(3)}</span>
+         · tgt ${m.target.toFixed(2)}` : '—';
+    rows += `<tr>
+      <td><div class="snap-name">${s.name}</div>
+          <div class="snap-meta">${s.note || ''} · ${nItems} actions · ${when}</div></td>
+      <td>${metric}</td>
+      <td style="white-space:nowrap">
+        <button class="toggle-btn mini" onclick="loadSnapshot('${s.name.replace(/'/g,"\\'")}');closeSnapMgr()">Load</button>
+        <button class="toggle-btn mini" onclick="renameSnap('${s.name.replace(/'/g,"\\'")}')">Rename</button>
+        <button class="toggle-btn mini" onclick="deleteSnap('${s.name.replace(/'/g,"\\'")}')">Delete</button>
+      </td></tr>`;
+  });
+  body.innerHTML = `<table class="snap-table">
+    <thead><tr><th>Scenario</th><th>vs current min floor</th><th>Actions</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+}
+
+function closeSnapMgr() { document.getElementById('snapMgr').classList.remove('open'); }
+
+async function deleteSnap(name) {
+  if (!confirm('Delete scenario "' + name + '"?')) return;
+  await fetch('/api/wheel/snapshot/' + encodeURIComponent(name), { method: 'DELETE' }).catch(() => {});
+  await refreshSnapshotList();
+  openSnapMgr();
+}
+
+async function renameSnap(oldName) {
+  const newName = prompt('Rename scenario:', oldName);
+  if (!newName || newName === oldName) return;
+  const snap = await fetch('/api/wheel/snapshot/' + encodeURIComponent(oldName)).then(r => r.json());
+  if (!snap || snap.error) return;
+  await fetch('/api/wheel/snapshot', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name: newName, snapshot: snap }),
+  });
+  await fetch('/api/wheel/snapshot/' + encodeURIComponent(oldName), { method: 'DELETE' });
+  await refreshSnapshotList();
+  openSnapMgr();
+}
+
+// ---- Equity math ----
+// Premium is priced at the moment BTC = execution level L (2-D table).
+// Strikes between table steps (e.g. 62000) are linearly interpolated.
+function _interpStrike(row, K) {
+  const ks = Object.keys(row).map(Number).sort((a, b) => a - b);
+  if (!ks.length) return 0;
+  if (K <= ks[0]) return row[ks[0]];
+  if (K >= ks[ks.length - 1]) return row[ks[ks.length - 1]];
+  for (let i = 0; i < ks.length - 1; i++) {
+    if (K >= ks[i] && K <= ks[i + 1]) {
+      const t = (K - ks[i]) / (ks[i + 1] - ks[i]);
+      return row[ks[i]] + t * (row[ks[i + 1]] - row[ks[i]]);
+    }
+  }
+  return row[ks[ks.length - 1]];
+}
+// --- Client-side Black-Scholes repricing (premium at the date a level is reached) ---
+// The server emits the IV smile + annualized carry + time-to-expiry so we can reprice
+// each level's premium at the remaining time T' = (expiry − assignedDate), where the
+// assigned date comes from the user's level_dates anchors (Part 1). Falls back to the
+// precomputed call[L][K]/put[L][K] table when smile data is absent.
+const _YEAR_MS = 365 * 24 * 3600 * 1000;
+
+function _smileSigma(smile, K) {
+  if (!smile || !smile.length) return 0.6;
+  if (K <= smile[0][0]) return smile[0][1];
+  if (K >= smile[smile.length - 1][0]) return smile[smile.length - 1][1];
+  for (let i = 0; i < smile.length - 1; i++) {
+    if (K >= smile[i][0] && K <= smile[i + 1][0]) {
+      const t = (K - smile[i][0]) / (smile[i + 1][0] - smile[i][0]);
+      return smile[i][1] + t * (smile[i + 1][1] - smile[i][1]);
+    }
+  }
+  return smile[smile.length - 1][1];
+}
+function _normCdf(x) {
+  // Abramowitz–Stegun erf approximation
+  const t = 1 / (1 + 0.2316419 * Math.abs(x));
+  const d = 0.3989422804014327 * Math.exp(-x * x / 2);
+  const p = d * t * (0.31938153 + t * (-0.356563782 + t * (1.781477937 +
+            t * (-1.821255978 + t * 1.330274429))));
+  return x >= 0 ? 1 - p : p;
+}
+function _bsUsd(F, K, T, sigma, type) {
+  if (T <= 0 || sigma <= 0) return type === 'C' ? Math.max(F - K, 0) : Math.max(K - F, 0);
+  const d1 = (Math.log(F / K) + 0.5 * sigma * sigma * T) / (sigma * Math.sqrt(T));
+  const d2 = d1 - sigma * Math.sqrt(T);
+  return type === 'C' ? F * _normCdf(d1) - K * _normCdf(d2)
+                      : K * _normCdf(-d2) - F * _normCdf(-d1);
+}
+
+// The date a level is expected to be reached, from the user's anchors.
+// Above the highest anchor -> its date; below the lowest -> its date;
+// between -> linear interpolation of the date by price. Empty -> today.
+function assignedDateForLevel(L) {
+  const a = (_wheelCfg.level_dates || [])
+    .filter(p => p && p.level != null && p.date)
+    .slice().sort((x, y) => x.level - y.level);
+  if (!a.length) return new Date();
+  const ts = d => new Date(d).getTime();
+  if (L <= a[0].level) return new Date(a[0].date);
+  if (L >= a[a.length - 1].level) return new Date(a[a.length - 1].date);
+  for (let i = 0; i < a.length - 1; i++) {
+    if (L >= a[i].level && L <= a[i + 1].level) {
+      const t = (L - a[i].level) / (a[i + 1].level - a[i].level);
+      return new Date(ts(a[i].date) + t * (ts(a[i + 1].date) - ts(a[i].date)));
+    }
+  }
+  return new Date(a[a.length - 1].date);
+}
+function _tToExpiry(expiryISO, L) {
+  if (!expiryISO) return 0;
+  return Math.max((new Date(expiryISO).getTime() - assignedDateForLevel(L).getTime()) / _YEAR_MS, 1e-6);
+}
+
+function callPrice(level, strike) {
+  const pt = _priceTable;
+  if (pt && pt.call_smile) {
+    const T = _tToExpiry(pt.call_expiry_date, level);
+    const F = level * Math.exp((pt.rate_call || 0) * T);
+    return _bsUsd(F, strike, T, _smileSigma(pt.call_smile, strike), 'C') / F;
+  }
+  const row = pt && pt.call[level];
+  return row ? _interpStrike(row, strike) : 0;
+}
+function putPrice(level, strike) {
+  const pt = _priceTable;
+  if (pt && pt.put_smile) {
+    const T = _tToExpiry(pt.put_expiry_date, level);
+    const F = level * Math.exp((pt.rate_put || 0) * T);
+    return _bsUsd(F, strike, T, _smileSigma(pt.put_smile, strike), 'P') / F;
+  }
+  const row = pt && pt.put[level];
+  return row ? _interpStrike(row, strike) : 0;
+}
+
+// Existing 25Dec26 put positions settle at the final 26Mar27 price P (Part 2),
+// not the scenario-low X — the whole equity is evaluated at the Mar close.
+function existingPutSettlement(P) {
+  if (!P || !_appData) return 0;
+  let v = 0;
+  (_appData.open_positions || []).forEach(p => {
+    const info = parseInstrument(p.instrument);
+    if (!info || info.expiry !== '25DEC26' || info.type !== 'P') return;
+    const payoff = Math.max(info.strike - P, 0) / P; // BTC per contract @ Mar price
+    v += (p.direction === 'buy' ? 1 : -1) * Math.abs(p.size) * payoff;
+  });
+  return v;
+}
+
+// Price-dependent minimum BTC floor.
+// Below min_flat_price -> flat min_btc. At/above -> interpolate the min_curve points
+// (flat extrapolation outside the listed prices). Empty curve -> flat min_btc everywhere.
+function minAt(P) {
+  const flatBelow = _wheelCfg.min_flat_price ?? 65000;
+  const mb = _wheelCfg.min_btc || 0;
+  if (P < flatBelow) return mb;
+  const c = (_wheelCfg.min_curve || []).filter(p => p && p.price != null && p.btc != null);
+  if (!c.length) return mb;
+  const pts = c.slice().sort((a, b) => a.price - b.price);
+  if (P <= pts[0].price) return pts[0].btc;
+  if (P >= pts[pts.length - 1].price) return pts[pts.length - 1].btc;
+  for (let i = 0; i < pts.length - 1; i++) {
+    if (P >= pts[i].price && P <= pts[i + 1].price) {
+      const t = (P - pts[i].price) / (pts[i + 1].price - pts[i].price);
+      return pts[i].btc + t * (pts[i + 1].btc - pts[i].btc);
+    }
+  }
+  return pts[pts.length - 1].btc;
+}
+
+// Per-unit BTC moved at settlement for a 26Mar27 call at price P.
+// If strike >= cover_price it's a TRUE covered call: above the strike a whole BTC moves
+// (short delivers −1, long acquires +1 per unit) so a long+short at the same strike offset.
+// Otherwise cash-settled inverse: max(P-K,0)/P.
+function callSettle(K, P) {
+  const cp = _wheelCfg.cover_price;
+  if (cp && K >= cp) return P >= K ? 1 : 0;
+  return Math.max(P - K, 0) / P;
+}
+
+// Deribit BTC cash balance (premiums/settlements already netted in).
+function deribitBalance() {
+  const a = (_appData.account_summaries || []).find(s => s.currency === 'BTC');
+  return a ? (a.balance || 0) : 0;
+}
+
+// Combined current futures/perpetual position: signed USD notional + entry.
+// Entry = last daily settlement price (perpetual is marked-to-market daily,
+// so forward P&L runs from the last settlement, not the original average).
+function futuresPosition() {
+  let notional = 0, eSum = 0, absSum = 0;
+  const settle = _appData.perpetual_settlement && _appData.perpetual_settlement.price;
+  (_appData.open_positions || []).forEach(p => {
+    if (parseInstrument(p.instrument)) return;        // options skip; only futures/perp
+    const sign = p.direction === 'buy' ? 1 : -1;
+    const sz = Math.abs(p.size);
+    notional += sign * sz;                            // signed USD notional
+    const e = (p.instrument === 'BTC-PERPETUAL' && settle) ? settle : (p.average_price || 0);
+    if (e > 0) { eSum += sz * e; absSum += sz; }
+  });
+  return { notional, entry: absSum ? eSum / absSum : 0 };
+}
+
+// Existing 26Mar27 calls + futures (perpetual) from positions AND pending orders,
+// settled at final price P. For positions, premium is already netted into usable BTC
+// (so only payoff is added). For orders we assume they fill, so payoff − premium.
+function existingDerivSettlement(P) {
+  if (!_appData) return 0;
+  let v = 0;
+
+  // --- Futures position, with optional size adjustment ---
+  // The removed part is simply dropped (no realized P&L). Only the kept
+  // notional carries forward to price P.
+  const fp = futuresPosition();
+  if (fp.entry > 0 && fp.notional !== 0) {
+    const adjN = (_wheelCfg.future_adj != null && !isNaN(_wheelCfg.future_adj))
+      ? _wheelCfg.future_adj : fp.notional;
+    v += adjN * (1 / fp.entry - 1 / P);        // kept notional only, forward to P
+  }
+
+  // --- 26Mar27 call positions: payoff only (premium already in usable BTC) ---
+  (_appData.open_positions || []).forEach(p => {
+    const info = parseInstrument(p.instrument);
+    if (info && info.expiry === '26MAR27' && info.type === 'C') {
+      const sz = Math.abs(p.size);
+      const sign = p.direction === 'buy' ? 1 : -1;
+      v += sign * sz * callSettle(info.strike, P);   // cover-aware; long/short offset at same strike
+    }
+  });
+
+  // --- Pending orders (calls + futures), assumed to fill ---
+  (_appData.open_orders || []).forEach(o => {
+    const info = parseInstrument(o.instrument);
+    const sign = o.direction === 'buy' ? 1 : -1;
+    const amt = ordAmt(o);
+    if (info && info.expiry === '26MAR27' && info.type === 'C') {
+      v += sign * amt * (callSettle(info.strike, P) - (o.price || 0));  // cover-aware payoff − premium
+    } else if (!info) {
+      const entry = o.price || 0;
+      if (entry > 0) v += sign * amt * (1 / entry - 1 / P);
+    }
+  });
+  return v;
+}
+
+function netPremiumExisting() {
+  let paid = 0;
+  (_appData.open_positions || []).forEach(p => {
+    const info = parseInstrument(p.instrument);
+    if (!info) return; // skip perpetual
+    const v = Math.abs(p.size) * (p.average_price || 0);
+    paid += (p.direction === 'buy' ? v : -v);
+  });
+  return paid;
+}
+
+// equity in BTC at final price P, for scenario lowest-level X
+function equityAt(P, X, usableBtc) {
+  let eq = usableBtc + existingPutSettlement(P) + existingDerivSettlement(P);
+  (_wheelCfg.items || []).forEach(it => {
+    const qty = it.qty || 0;
+    if (!qty) return;
+    const L = it.level;
+    if (X == null || L < X) return;                    // action triggers only if price reached L
+    const K = it.strike || L;
+    if (it.type === 'long_call') {
+      eq += qty * callSettle(K, P) - qty * callPrice(L, K);
+    } else if (it.type === 'short_call') {
+      eq += qty * callPrice(L, K) - qty * callSettle(K, P);
+    } else if (it.type === 'long_future') {
+      eq += qty * (P - L) / P;                          // executed at level L
+    } else if (it.type === 'short_put') {
+      eq += qty * putPrice(L, K) - qty * Math.max(K - P, 0) / P; // priced at L, settles at Mar price P (Part 2)
+    }
+  });
+  return eq;
+}
+
+// Prices where a line y(x) crosses a horizontal target (linear interpolation between samples).
+function _crossings(xs, ys, target) {
+  const out = [];
+  for (let k = 0; k < xs.length - 1; k++) {
+    const a = ys[k], b = ys[k + 1];
+    if (a == null || b == null) continue;
+    const da = a - target, db = b - target;
+    if (da === 0) { out.push(xs[k]); continue; }
+    if (da * db < 0) {
+      const t = da / (da - db);
+      out.push(xs[k] + t * (xs[k + 1] - xs[k]));
+    }
+  }
+  return out;
+}
+
+let _wheelEl = null, _ladderEl = null;
+
+function renderWheelChecks() {
+  const el = document.getElementById('w-checks');
+  if (!el) return;
+  el.innerHTML = activeScenarios().map(X => {
+    const i = W_SCENARIOS.indexOf(X);     // stable palette index regardless of filtering
+    const name = scenName(X);
+    const color = W_PALETTE[i % W_PALETTE.length];
+    const checked = _wheelHidden.has(name) ? '' : 'checked';
+    return `<label><input type="checkbox" ${checked} onchange="toggleScenario('${name}')">
+      <span class="dot" style="background:${color}"></span>${name}</label>`;
+  }).join('');
+}
+
+function toggleScenario(name) {
+  if (_wheelHidden.has(name)) _wheelHidden.delete(name);
+  else _wheelHidden.add(name);
+  persistHidden();
+  computeWheel();
+}
+
+function setAllScenarios(show) {
+  _wheelHidden = show ? new Set() : new Set(W_SCENARIOS.map(scenName));
+  renderWheelChecks();
+  persistHidden();
+  computeWheel();
+}
+
+function persistHidden() {
+  _wheelCfg.hidden_scenarios = [..._wheelHidden];
+  scheduleSave();
+}
+
+function toggleActions() {
+  const body = document.getElementById('w-body');
+  const hidden = body.classList.toggle('actions-hidden');
+  document.getElementById('w-hideBtn').textContent = hidden ? '⮞ Show actions' : '⮜ Hide actions';
+  if (_wheelEl && _wheelEl.data) Plotly.Plots.resize(_wheelEl);  // grow chart to new width
+}
+
+const W_PALETTE = ['#3fb950','#79c0ff','#58a6ff','#d2a8ff','#f0b429','#ffa657',
+                   '#f78166','#ff7b72','#f85149','#da3633','#b62324'];
+const W_XMAX = 200000;   // max BTC price shown on the equity chart (incl. short-call ladder zone)
+function scenName(X) { return X == null ? 'low 65k' : `low ${X / 1000}k`; }
+let _wheelHidden = new Set();   // scenario names hidden by checkbox
+
+function computeWheel() {
+  if (!_wheelCfg || !_appData) return;
+  // Usable BTC = external (off-Deribit) + Deribit cash balance.
+  // Balance already nets all premiums/settlements, so no net-premium subtraction.
+  const balance = deribitBalance();
+  const usableBtc = (_wheelCfg.external_btc || 0) + balance;
+
+  document.getElementById('w-balance').textContent = balance.toFixed(4) + ' BTC';
+  document.getElementById('w-usable').textContent = usableBtc.toFixed(4) + ' BTC';
+
+  // x-axis: final BTC price at 26Mar27
+  const xs = [];
+  for (let p = 10000; p <= W_XMAX; p += 2000) xs.push(p);
+
+  const refPrice = parseFloat(document.getElementById('w-refPrice')?.value) || 80000;
+
+  const traces = [];
+  // worst MARGIN = min over visible lines of (equity − price-dependent floor)
+  let worstMargin = Infinity, worstAt = null;
+  const beX = [], beY = [], beText = [], beColor = [];   // break-even markers vs usable (Part 3)
+  activeScenarios().forEach(X => {
+    const i = W_SCENARIOS.indexOf(X);          // stable palette index regardless of filtering
+    const color = W_PALETTE[i % W_PALETTE.length];
+    const name = scenName(X);
+    // Final price must be >= the lowest price reached (never<60k => >= 60000).
+    const floor = X == null ? 60000 : X;
+    const ys = xs.map(P => P >= floor ? equityAt(P, X, usableBtc) : null);
+    // Worst-case considers ALL active scenarios, regardless of checkbox visibility.
+    ys.forEach((v, k) => {
+      if (v != null) { const m = v - minAt(xs[k]); if (m < worstMargin) { worstMargin = m; worstAt = { P: xs[k], name, eq: v }; } }
+    });
+    // Break-even = where this line's equity crosses the usable (ext+bal) reference.
+    const bes = _crossings(xs, ys, usableBtc);
+    if (!_wheelHidden.has(name)) bes.forEach(P => {
+      beX.push(P); beY.push(usableBtc); beColor.push(color);
+      beText.push(`${name} break-even<br>BTC $${P.toLocaleString(undefined,{maximumFractionDigits:0})}`);
+    });
+    const eqRef = refPrice >= floor ? equityAt(refPrice, X, usableBtc) : null;
+    // Show the equity at the reference price next to each line's legend label.
+    const legendName = eqRef != null ? `${name}  ${eqRef.toFixed(2)}` : name;
+    traces.push({
+      type: 'scatter', mode: 'lines', name: legendName,
+      x: xs, y: ys,
+      visible: _wheelHidden.has(name) ? 'legendonly' : true,
+      line: { color, width: 1.8 },
+      hovertemplate: `${name}<br>BTC $%{x:,.0f}<br>Equity %{y:.4f} BTC<extra></extra>`,
+    });
+  });
+  if (worstMargin === Infinity) worstMargin = 0;
+
+  // Usable BTC (external + Deribit balance) as a horizontal reference line
+  traces.push({
+    type: 'scatter', mode: 'lines', name: 'usable (ext+bal)',
+    x: [10000, W_XMAX], y: [usableBtc, usableBtc],
+    line: { color: '#c9d1d9', width: 1.2, dash: 'dot' },
+    hovertemplate: `usable ${usableBtc.toFixed(3)} BTC<extra></extra>`,
+  });
+
+  // Min floor as a (possibly price-dependent) line trace
+  traces.push({
+    type: 'scatter', mode: 'lines', name: 'min floor',
+    x: xs, y: xs.map(minAt),
+    line: { color: '#f85149', width: 1.5, dash: 'dash' },
+    hovertemplate: `min floor<br>BTC $%{x:,.0f}<br>%{y:.3f} BTC<extra></extra>`,
+  });
+
+  // Break-even markers: where each visible line crosses the usable reference (Part 3)
+  if (beX.length) traces.push({
+    type: 'scatter', mode: 'markers', name: 'break-even', showlegend: false,
+    x: beX, y: beY, text: beText,
+    marker: { symbol: 'diamond', size: 9, color: beColor,
+              line: { color: '#0d1117', width: 1 } },
+    hovertemplate: '%{text}<extra></extra>',
+  });
+
+  const okEl = document.getElementById('w-check');
+  if (worstMargin >= 0) {
+    okEl.innerHTML = `<span class="wheel-ok">OK (+${worstMargin.toFixed(3)} margin)</span>`;
+  } else {
+    okEl.innerHTML = `<span class="wheel-warn">⚠ ${worstMargin.toFixed(3)} @ $${(worstAt.P/1000)}k (${worstAt.name})</span>`;
+  }
+
+  const layout = {
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+    font: { color: '#e6edf3', size: 11 },
+    margin: { l: 60, r: 12, t: 10, b: 40 },
+    autosize: true,
+    xaxis: { title: 'BTC price @ 26Mar27 ($)', gridcolor: '#30363d',
+             tickformat: ',.0f', tickprefix: '$', range: [10000, W_XMAX], fixedrange: true },
+    yaxis: { title: 'Net equity (BTC)', gridcolor: '#30363d', zerolinecolor: '#8b949e', fixedrange: true },
+    legend: { font: { size: 9 }, bgcolor: 'transparent' },
+  };
+
+  _wheelEl = document.getElementById('wheelChart');
+  Plotly.newPlot(_wheelEl, traces, layout, { displayModeBar: false, responsive: true })
+    .then(() => Plotly.Plots.resize(_wheelEl));
+  if (!_wheelObserver) {
+    _wheelObserver = new ResizeObserver(() => { if (_wheelEl.data) Plotly.Plots.resize(_wheelEl); });
+    _wheelObserver.observe(_wheelEl);
+  }
+}
+
+// ============================ WHEEL SECURED CHECK (Part 5) ============================
+// Scope: only positions/orders expiring BEFORE 25Dec26 (the "Wheel" book).
+let _securedEl = null, _securedObserver = null;
+let _securedPutEl = null, _securedPutObserver = null;
+const _WHEEL_CUTOFF = new Date(2026, 11, 25);   // 25 Dec 2026
+
+function _isWheelExp(expiry) {
+  const d = expiryDate(expiry);
+  return d && d < _WHEEL_CUTOFF;
+}
+
+function renderSecured() {
+  if (!_wheelCfg || !_appData) return;
+  if (!document.getElementById('securedChart')) return;
+  renderSecuredChart();
+  renderPremiumTables();
+}
+
+function renderPremiumTables() {
+  const byExp = {};
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const now = Date.now();
+  
+  (_appData.open_positions || []).forEach(p => {
+    const i = parseInstrument(p.instrument);
+    if (!i || p.size === 0) return; // Process both short and long positions
+
+    const exp = i.expiry;
+    if (!_isWheelExp(exp)) return; // Only show positions that expire before 25 Dec 2026
+
+    if (!byExp[exp]) {
+      byExp[exp] = { date: expiryDate(exp), putPrem: 0, putSec: 0, putQty: 0, callPrem: 0, callSec: 0, hasPut: false, hasCall: false };
+    }
+    
+    const absSize = Math.abs(p.size);
+    const rawPremBtc = absSize * (p.average_price || 0);
+    // Deduct commission
+    const commBtc = Math.min(0.0003 * absSize, 0.125 * rawPremBtc);
+    
+    let netPremBtc = 0;
+    if (p.size < 0) {
+      // Short: receive premium, pay commission
+      netPremBtc = rawPremBtc - commBtc;
+    } else {
+      // Long: pay premium, pay commission
+      netPremBtc = -rawPremBtc - commBtc;
+    }
+
+    if (i.type === 'P') {
+      byExp[exp].hasPut = true;
+      byExp[exp].putPrem += netPremBtc;
+      const idxPx = p.index_price || _appData.perpetual_settlement?.index_price || 60000;
+      byExp[exp].putSec += (-p.size * i.strike) / idxPx;
+      byExp[exp].putQty += -p.size;
+    } else if (i.type === 'C') {
+      byExp[exp].hasCall = true;
+      byExp[exp].callPrem += netPremBtc;
+      byExp[exp].callSec += -p.size;
+    }
+  });
+
+  const exps = Object.keys(byExp).sort((a, b) => (byExp[a].date || 0) - (byExp[b].date || 0));
+
+  let combinedHtml = `<table class="snap-table" style="width: auto; margin: 10px auto 0 auto; text-align:right; font-size: 14px; color: #ffffff;">
+    <thead>
+      <tr>
+        <th style="text-align:left; font-size: 11px; padding: 0 10px;">Expiry</th>
+        <th style="text-align:right; font-size: 11px; padding: 0 10px;">Put Prem</th>
+        <th style="text-align:right; font-size: 11px; padding: 0 10px;">Put Qty</th>
+        <th style="text-align:right; font-size: 11px; padding: 0 10px;">Call Prem</th>
+        <th style="text-align:right; font-size: 11px; padding: 0 10px;">Call Qty</th>
+        <th style="text-align:right; font-size: 11px; font-weight: bold; padding: 0 10px;">Total (P+C)</th>
+        <th style="text-align:right; font-size: 11px; font-weight: bold; padding: 0 10px;">Total ROI%</th>
+      </tr>
+    </thead>
+    <tbody>`;
+
+  let pTotPrem = 0, pTotSec = 0, pTotQty = 0, pTotAnnPrem = 0;
+  let cTotPrem = 0, cTotSec = 0, cTotAnnPrem = 0;
+
+  exps.forEach(exp => {
+    const r = byExp[exp];
+    const days = Math.max(1, (r.date - now) / msPerDay);
+    
+    // Put Row
+    pTotPrem += r.putPrem;
+    pTotSec += r.putSec;
+    pTotQty += r.putQty;
+    const pAnnPrem = r.putPrem * (365 / days);
+    pTotAnnPrem += pAnnPrem;
+
+    // Call Row
+    cTotPrem += r.callPrem;
+    cTotSec += r.callSec;
+    const cAnnPrem = r.callPrem * (365 / days);
+    cTotAnnPrem += cAnnPrem;
+    
+    const totalExp = r.putPrem + r.callPrem;
+    const tSec = r.putSec + r.callSec;
+    const tAnnRoi = tSec > 0 ? (totalExp / tSec) * (365 / days) * 100 : 0;
+    
+    combinedHtml += `<tr>
+      <td style="text-align:left; font-weight:600; padding: 5px 10px;">${exp}</td>
+      <td style="padding: 5px 10px;">${r.hasPut ? r.putPrem.toFixed(4) : '-'}</td>
+      <td style="padding: 5px 10px;">${Math.abs(r.putQty) > 1e-9 ? r.putQty.toFixed(2) : '-'}</td>
+      <td style="padding: 5px 10px;">${r.hasCall ? r.callPrem.toFixed(4) : '-'}</td>
+      <td style="padding: 5px 10px;">${Math.abs(r.callSec) > 1e-9 ? r.callSec.toFixed(2) : '-'}</td>
+      <td style="font-weight: bold; padding: 5px 10px;">${totalExp !== 0 ? totalExp.toFixed(4) : '-'}</td>
+      <td style="font-weight: bold; color: #3fb950; padding: 5px 10px;">${(r.hasPut || r.hasCall) && tSec > 0 ? tAnnRoi.toFixed(2) + '%' : '-'}</td>
+    </tr>`;
+  });
+
+  if (exps.length > 0) {
+    const totalBoth = pTotPrem + cTotPrem;
+    const totalSec = pTotSec + cTotSec;
+    const totalAnnPrem = pTotAnnPrem + cTotAnnPrem;
+    const totalAnnRoi = totalSec > 0 ? (totalAnnPrem / totalSec) * 100 : 0;
+    
+    combinedHtml += `<tr style="border-top: 2px solid #30363d; font-weight:700;">
+      <td style="text-align:left; padding: 5px 10px;">TOTAL</td>
+      <td style="padding: 5px 10px;">${pTotPrem.toFixed(4)}</td>
+      <td style="padding: 5px 10px;">${pTotQty.toFixed(2)}</td>
+      <td style="padding: 5px 10px;">${cTotPrem.toFixed(4)}</td>
+      <td style="padding: 5px 10px;">${cTotSec.toFixed(2)}</td>
+      <td style="font-weight: bold; padding: 5px 10px;">${totalBoth.toFixed(4)}</td>
+      <td style="font-weight: bold; color: #3fb950; padding: 5px 10px;">${totalAnnRoi.toFixed(2)}%</td>
+    </tr>`;
+  }
+  
+  combinedHtml += `</tbody></table>`;
+
+  const combinedCont = document.getElementById('combined-premium-container');
+  if (combinedCont) combinedCont.innerHTML = combinedHtml;
+}
+
+// Wheel option exposure by strike (sell = +, buy = −), split into position vs order,
+// for a given type ('P' or 'C'). Only expiries before 25Dec26 (the wheel book).
+function _wheelObligByStrike(type) {
+  const m = {};
+  const add = (strike, key, qty) => { (m[strike] = m[strike] || { pos: 0, ord: 0 })[key] += qty; };
+  (_appData.open_positions || []).forEach(p => {
+    const i = parseInstrument(p.instrument);
+    if (i && i.type === type && _isWheelExp(i.expiry))
+      add(i.strike, 'pos', (p.direction === 'sell' ? 1 : -1) * Math.abs(p.size || 0));
+  });
+  (_appData.open_orders || []).forEach(o => {
+    const i = parseInstrument(o.instrument);
+    if (i && i.type === type && _isWheelExp(i.expiry))
+      add(i.strike, 'ord', (o.direction === 'sell' ? 1 : -1) * ordAmt(o));
+  });
+  return m;
+}
+
+function renderSecuredChart() {
+  // On narrow (mobile) screens the bars are thin, so shrink the data labels and
+  // let Plotly hide any that still won't fit instead of overlapping them.
+  const narrow = window.innerWidth <= 820;
+  const barFont = narrow ? 10 : 16;
+  const annFont = narrow ? 10 : 18;
+  // ---- 1. Puts Logic ----
+  const putByStrike = _wheelObligByStrike('P');
+  const planByLevel = {};
+  (_wheelCfg.items || []).forEach(it => {
+    if (it.qty && (it.type === 'long_call' || it.type === 'long_future'))
+      planByLevel[it.level] = (planByLevel[it.level] || 0) + it.qty;
+  });
+  const putPoints = [...new Set([
+    ...Object.keys(putByStrike).map(Number), ...Object.keys(planByLevel).map(Number),
+  ])].sort((a, b) => a - b);
+  
+  let putCarry = 0, putOverCount = 0, putWorstOver = 0;
+  const putByK = {};
+  [...putPoints].sort((a, b) => b - a).forEach(K => {
+    const plan = planByLevel[K] || 0;
+    const frame = plan + putCarry;
+    const pb = putByStrike[K] || { pos: 0, ord: 0 };
+    const oblig = pb.pos + pb.ord; 
+    const gap = frame - oblig; 
+    if (gap < -1e-9) { putOverCount++; putWorstOver = Math.max(putWorstOver, -gap); }
+    putCarry = gap;
+    putByK[K] = { pos: pb.pos, ord: pb.ord, oblig, gap };
+  });
+
+  const putVEl = document.getElementById('sec-put-verdict');
+  if (!putPoints.length) { putVEl.className = 'sec-verdict'; putVEl.innerHTML = 'No wheel puts.'; }
+  else if (putOverCount === 0) {
+    putVEl.className = 'sec-verdict ok';
+    putVEl.innerHTML = '\u2705 Put Secured — within planned cover';
+  } else {
+    putVEl.className = 'sec-verdict warn';
+    putVEl.innerHTML = '\u26A0 ' + putOverCount + ' Put strike(s) exceed cover (worst \u2212' + putWorstOver.toFixed(2) + ' BTC gap)';
+  }
+
+  // ---- 2. Calls Logic ----
+  const X = _wheelCfg.current_level == null ? null : _wheelCfg.current_level;
+  const usableBtc = (_wheelCfg.external_btc || 0) + deribitBalance();
+  const floor = X == null ? 60000 : X;
+  let base_gap = Infinity;
+  for (let P = 100000; P <= W_XMAX; P += 2000) {
+    if (P < floor) continue;
+    const g = equityAt(P, X, usableBtc) - minAt(P);
+    if (g < base_gap) { base_gap = g; }
+  }
+  if (base_gap === Infinity) base_gap = 0;
+  
+  const sign = base_gap >= 0 ? '+' : '';
+  const gapColor = base_gap >= 0 ? '#3fb950' : '#f85149';
+  const callLvlEl = document.getElementById('sec-call-lvl');
+  if(callLvlEl) callLvlEl.innerHTML = 'Strategy Base Gap (>100k): <span style="color:' + gapColor + '; font-weight:bold;">' + sign + base_gap.toFixed(3) + ' BTC</span>';
+  
+  const callByStrike = _wheelObligByStrike('C');
+  const callPoints = Object.keys(callByStrike).map(Number).sort((a, b) => a - b);
+  
+  let callCarry = 0, callOverCount = 0, callWorstOver = 0;
+  const callByK = {};
+  callPoints.forEach((K, index) => {
+    const plan = (index === 0) ? base_gap : 0;
+    const frame = plan + callCarry;
+    const pb = callByStrike[K] || { pos: 0, ord: 0 };
+    const oblig = pb.pos + pb.ord; 
+    const gap = frame - oblig; 
+    if (gap < -1e-9) { callOverCount++; callWorstOver = Math.max(callWorstOver, -gap); }
+    callCarry = gap;
+    callByK[K] = { pos: pb.pos, ord: pb.ord, oblig, gap };
+  });
+
+  const callVEl = document.getElementById('sec-call-verdict');
+  if (!callPoints.length) { 
+    callVEl.className = 'sec-verdict'; 
+    callVEl.innerHTML = 'No wheel calls.';
+  } else if (callOverCount === 0) {
+    callVEl.className = 'sec-verdict ok';
+    callVEl.innerHTML = '\u2705 Call Secured — within cover';
+  } else {
+    callVEl.className = 'sec-verdict warn';
+    callVEl.innerHTML = '\u26A0 ' + callOverCount + ' Call strike(s) exceed cover (worst \u2212' + callWorstOver.toFixed(2) + ' BTC gap)';
+  }
+
+  // ---- 3. Combine Data for Chart ----
+  const labels = [];
+  const posX = [];
+  const ordX = [];
+  const spareX = [];
+  const overFlag = [];
+  const annotations = [];
+  
+  const fmtBar = v => Math.abs(v) > 1e-9 ? v.toFixed(2) : '';
+
+  putPoints.forEach(K => {
+    labels.push((K / 1000) + 'k P');
+    const r = putByK[K];
+    posX.push(r.pos);
+    ordX.push(r.ord);
+    spareX.push(Math.max(r.gap, 0));
+    overFlag.push(r.gap < -1e-9);
+    annotations.push({
+      x: (K / 1000) + 'k P', y: r.oblig + Math.max(r.gap, 0), yanchor: 'bottom', yshift: 4, textangle: narrow ? -90 : 0,
+      text: '<b>' + (r.gap >= 0 ? '+' : '') + r.gap.toFixed(2) + '</b>', showarrow: false,
+      font: { size: annFont, color: r.gap < -1e-9 ? '#f85149' : '#e6edf3' }
+    });
+  });
+
+  callPoints.forEach(K => {
+    labels.push((K / 1000) + 'k C');
+    const r = callByK[K];
+    posX.push(r.pos);
+    ordX.push(r.ord);
+    spareX.push(Math.max(r.gap, 0));
+    overFlag.push(r.gap < -1e-9);
+    annotations.push({
+      x: (K / 1000) + 'k C', y: r.oblig + Math.max(r.gap, 0), yanchor: 'bottom', yshift: 4, textangle: narrow ? -90 : 0,
+      text: '<b>' + (r.gap >= 0 ? '+' : '') + r.gap.toFixed(2) + '</b>', showarrow: false,
+      font: { size: annFont, color: r.gap < -1e-9 ? '#f85149' : '#e6edf3' }
+    });
+  });
+
+  if (!labels.length) {
+    _securedEl = document.getElementById('securedChart');
+    if (_securedEl) Plotly.purge(_securedEl);
+    return;
+  }
+
+  const traces = [
+    { type: 'bar', name: 'position', x: labels, y: posX,
+      marker: { color: overFlag.map(f => f ? '#cb2431' : '#238636') },
+      text: posX.map(fmtBar), textposition: 'inside',
+      insidetextanchor: 'middle', textfont: { size: barFont, color: '#ffffff', weight: 'bold' },
+      hovertemplate: 'position %{y:.2f} BTC<extra></extra>' },
+    { type: 'bar', name: 'order', x: labels, y: ordX,
+      marker: { color: overFlag.map(f => f ? '#b31d28' : '#196c2e'),
+                pattern: { shape: '/', size: 4, solidity: 0.35 } },
+      text: ordX.map(fmtBar), textposition: 'inside',
+      insidetextanchor: 'middle', textfont: { size: barFont, color: '#ffffff', weight: 'bold' },
+      hovertemplate: 'order %{y:.2f} BTC<extra></extra>' },
+    { type: 'bar', name: 'cover (spare)', x: labels, y: spareX,
+      marker: { color: 'rgba(0,0,0,0)', line: { color: '#8b949e', width: 1.5 } },
+      hovertemplate: 'spare cover %{y:.2f} BTC<extra></extra>' },
+  ];
+
+  const shapes = [];
+  if (putPoints.length > 0 && callPoints.length > 0) {
+    shapes.push({
+      type: 'line',
+      x0: putPoints.length - 0.5,
+      x1: putPoints.length - 0.5,
+      y0: 0,
+      y1: 1,
+      yref: 'paper',
+      line: { color: '#8b949e', width: 2, dash: 'dash' }
+    });
+  }
+
+  const layout = {
+    paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+    font: { color: '#e6edf3', size: 11 }, margin: { l: 46, r: 12, t: 22, b: 34 }, autosize: true,
+    barmode: 'stack',
+    uniformtext: { minsize: narrow ? 7 : 16, mode: narrow ? 'hide' : 'show' },
+    xaxis: { title: 'Strikes (Puts -> Calls)', type: 'category', categoryorder: 'array', categoryarray: labels, gridcolor: '#30363d', fixedrange: true },
+    yaxis: { title: 'BTC', gridcolor: '#30363d', zerolinecolor: '#8b949e', rangemode: 'tozero', fixedrange: true },
+    legend: { font: { size: 9 }, bgcolor: 'transparent', orientation: 'h', y: -0.16 },
+    annotations,
+    shapes
+  };
+  
+  _securedEl = document.getElementById('securedChart');
+  Plotly.newPlot(_securedEl, traces, layout, { displayModeBar: false, responsive: true })
+    .then(() => Plotly.Plots.resize(_securedEl));
+  if (!_securedObserver) {
+    _securedObserver = new ResizeObserver(() => { if (_securedEl.data) Plotly.Plots.resize(_securedEl); });
+    _securedObserver.observe(_securedEl);
+  }
+}
+
+loadData();
+
+</script>
+</body>
+</html>
