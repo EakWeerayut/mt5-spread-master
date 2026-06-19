@@ -48,124 +48,136 @@
     <h1>Trading Advisor Report</h1>
     
     <div class="snapshot-bar">
-        <div class="snapshot-item"><span class="snapshot-label">Spot Price</span><span class="snapshot-value">$66,292.57</span></div>
-        <div class="snapshot-item"><span class="snapshot-label">Usable Equity</span><span class="snapshot-value">7.7359 BTC</span></div>
-        <div class="snapshot-item"><span class="snapshot-label">Worst Margin</span><span class="snapshot-value highlight-red">0.0047 BTC (low30k)</span></div>
-        <div class="snapshot-item"><span class="snapshot-label">Secured Check</span><span class="snapshot-value">Call: <span class="highlight-red">OVER</span> | Put: <span class="highlight-green">SECURED</span></span></div>
+        <div class="snapshot-item">
+            <span class="snapshot-label">BTC Spot Price</span>
+            <span class="snapshot-value">$65,636.81</span>
+        </div>
+        <div class="snapshot-item">
+            <span class="snapshot-label">Usable Balance</span>
+            <span class="snapshot-value">7.7368 BTC</span>
+        </div>
+        <div class="snapshot-item">
+            <span class="snapshot-label">Worst Scenario Margin</span>
+            <span class="snapshot-value highlight-green">+0.0122 BTC (low30k @ $30,000)</span>
+        </div>
+        <div class="snapshot-item">
+            <span class="snapshot-label">Call Security Verdict</span>
+            <span class="snapshot-value highlight-red">OVER (0.049 BTC Gap @ 70k)</span>
+        </div>
     </div>
 
     <div class="cards-grid">
-        <!-- Card 1 -->
+        <!-- Opportunity #1 -->
         <div class="card buy">
             <div class="card-header">
-                <h2 class="card-title">#1 — OTM Put Buy (Mispricing)</h2>
-                <span class="badge mispricing">MISPRICING</span>
+                <h2 class="card-title">#1 — BTC-26JUN26-65000-P (Underpriced Put)</h2>
+                <span class="badge mispricing">Mispricing</span>
             </div>
             <div class="ticket-row">
-                <div class="ticket-box"><span class="snapshot-label">Instrument</span><span class="snapshot-value">BTC-26JUN26-66000-P</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Order</span><span class="snapshot-value side-buy">BUY 0.1</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Limit</span><span class="snapshot-value">0.0220</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Edge</span><span class="snapshot-value highlight-green">+0.00103 BTC</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Instrument</span><span class="snapshot-value">BTC-26JUN26-65000-P</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Side/Qty</span><span class="snapshot-value side-buy">BUY 0.1 BTC</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Limit</span><span class="snapshot-value">0.0180 BTC (~$1,181)</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Edge</span><span class="snapshot-value highlight-green">+0.00119 BTC</span></div>
             </div>
             <div class="details-section">
-                <p><strong>Why:</strong> สัญญา Put นี้มีราคาถูกผิดปกติเมื่อเทียบกับ Volatility Smile (-4.54 IV pts) ทำให้มีความได้เปรียบทางราคาที่ดีมากเมื่อตั้งรับซื้อที่ระดับราคา Ask ปัจจุบัน</p>
-                <p><strong>Risk:</strong> หากราคาบิทคอยน์ไม่ลดลงต่ำกว่า 66,000 ดอลลาร์ก่อนวันหมดอายุ (26 มิถุนายน) จะสูญเสียค่าพรีเมียมที่จ่ายไปทั้งหมด</p>
-                <p><strong>Verify:</strong> เช็คในแท็บ Opportunity Screen ความได้เปรียบในการซื้อ (Buy Edge) จะต้องแสดงค่าเป็นบวก</p>
+                <p><strong>Why:</strong> โอกาสซื้อประกันราคาขาลงระยะสั้น (Short-term downside hedge) ที่ราคาถูกมากอย่างมีนัยสำคัญ โดยราคาตลาดต่ำกว่า Fitted Smile ถึง -5.41 IV points ทำให้การเทรดนี้มี Positive Edge สูงสุดในฝั่งซื้อ (+0.00119 BTC) ซึ่งคุ้มค่าพอที่จะเอาชนะค่าธรรมเนียมและ Bid-Ask Spread</p>
+                <p><strong>Risk:</strong> หากราคา BTC ปิดสูงกว่า $65,000 ณ วันที่ 26 มิ.ย. 26 ออปชันนี้จะหมดอายุอย่างไร้ค่าและสูญเสียค่าพรีเมียมที่จ่ายไปทั้งหมด</p>
+                <p><strong>Verify:</strong> สามารถตรวจสอบได้ในหน้าแดชบอร์ด แท็บ IV Curve ซึ่งจุดของออปชันนี้จะอยู่ต่ำกว่าเส้น Fitted Smile อย่างเห็นได้ชัด</p>
             </div>
         </div>
-        
-        <!-- Card 2 -->
+
+        <!-- Opportunity #2 -->
         <div class="card buy">
             <div class="card-header">
-                <h2 class="card-title">#2 — Close Call Gap (Mispricing)</h2>
-                <span class="badge ladder">LADDER</span>
+                <h2 class="card-title">#2 — BTC-26JUN26-70000-C (Call Coverage Repair)</h2>
+                <span class="badge ladder">Strategy</span>
             </div>
             <div class="ticket-row">
                 <div class="ticket-box"><span class="snapshot-label">Instrument</span><span class="snapshot-value">BTC-26JUN26-70000-C</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Order</span><span class="snapshot-value side-buy">BUY 0.1</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Limit</span><span class="snapshot-value">0.0060</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Edge</span><span class="snapshot-value highlight-green">+0.00028 BTC</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Side/Qty</span><span class="snapshot-value side-buy">BUY 0.1 BTC</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Limit</span><span class="snapshot-value">0.0034 BTC (~$223)</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Edge</span><span class="snapshot-value highlight-green">+0.00061 BTC</span></div>
             </div>
             <div class="details-section">
-                <p><strong>Why:</strong> ระบบรายงานว่ามี Call Over-exposed อยู่ที่ Strike 70000 (Gap -0.049) การซื้อ Call นี้ช่วยอุดช่องโหว่ความเสี่ยง นอกจากนี้ตัวสัญญายังมีราคาถูกเป็นพิเศษ (-3.93 IV pts)</p>
-                <p><strong>Risk:</strong> ต้นทุนพรีเมียมที่จ่ายไปจะลด Usable Equity ลงเล็กน้อย แต่ช่วยเสริมความปลอดภัยให้ Wheel book อย่างสมบูรณ์</p>
-                <p><strong>Verify:</strong> เช็คในแท็บ Wheel &rarr; Secured Check ค่า Call Verdict จะต้องกลับมาเป็น Secured สีเขียว</p>
+                <p><strong>Why:</strong> ช่วยแก้ไขปัญหาความเสี่ยงฝั่ง Call Option (Call Coverage Gap) ที่เกิดขึ้นที่ Strike 70,000 ในส่วนของ Secured Check ซึ่งขณะนี้มีช่องว่างความเสี่ยงติดลบอยู่ -0.049 BTC และมีสถานะ Call Verdict เป็น "Over" ออปชันนี้ราคาถูกกว่า Fitted Smile ถึง -5.14 IV points การซื้อจะช่วยปิดความเสี่ยงนี้ให้พอร์ตกลับมาปลอดภัย</p>
+                <p><strong>Risk:</strong> จ่ายค่าพรีเมียม 0.0034 BTC หากราคา BTC ไม่สามารถปรับตัวทะลุ $70,000 ณ วันหมดอายุ ออปชันนี้จะไร้ค่า</p>
+                <p><strong>Verify:</strong> ตรวจสอบที่หน้าแดชบอร์ด ตาราง Secured Check ในบรรทัด Call Rows ของ Strike 70000 ช่อง Gap จะต้องดีขึ้นเป็นบวก และสถานะเปลี่ยนจาก Over เป็น Secured</p>
             </div>
         </div>
 
-        <!-- Card 3 -->
+        <!-- Opportunity #3 -->
         <div class="card sell">
             <div class="card-header">
-                <h2 class="card-title">#3 — OTM Put Sell (Mispricing)</h2>
-                <span class="badge mispricing">MISPRICING</span>
+                <h2 class="card-title">#3 — BTC-31JUL26-66000-C (Overpriced Call Sell)</h2>
+                <span class="badge mispricing">Mispricing</span>
             </div>
             <div class="ticket-row">
-                <div class="ticket-box"><span class="snapshot-label">Instrument</span><span class="snapshot-value">BTC-31JUL26-61000-P</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Order</span><span class="snapshot-value side-sell">SELL 0.1</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Limit</span><span class="snapshot-value">0.0225</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Edge</span><span class="snapshot-value highlight-green">+0.00069 BTC</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Instrument</span><span class="snapshot-value">BTC-31JUL26-66000-C</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Side/Qty</span><span class="snapshot-value side-sell">SELL 0.1 BTC</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Limit</span><span class="snapshot-value">0.0480 BTC (~$3,151)</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Edge</span><span class="snapshot-value highlight-green">+0.00063 BTC</span></div>
             </div>
             <div class="details-section">
-                <p><strong>Why:</strong> สัญญา Put นี้มีราคาแพงกว่าปกติเมื่อเทียบกับ Smile (+0.24 IV pts) ทำให้เรามี Edge ที่ดีในการเข้าขายเพื่อเก็บพรีเมียมส่วนเกินเข้า Wheel book</p>
-                <p><strong>Risk:</strong> หากราคาบิทคอยน์ลดลงต่ำกว่า 61,000 ดอลลาร์ อาจถูก Assignment เพื่อรับซื้อเหรียญที่ราคานี้ จึงต้องเตรียม Margin เผื่อไว้</p>
-                <p><strong>Verify:</strong> ตรวจสอบพรีเมียมที่จะได้รับ ซึ่งจะช่วยเพิ่มค่า Usable Equity ในพอร์ตโดยรวม</p>
+                <p><strong>Why:</strong> โอกาสในการเขียน Covered Call ที่ราคาแพงกว่าที่ควรจะเป็น (Fitted Smile) อยู่ +0.31 IV points และให้ Edge หลังหัก Spread เป็นบวก (+0.00063 BTC) ช่วยเพิ่มกระแสเงินสดพรีเมียมเข้ามาในพอร์ตภายใต้โครงสร้างกลยุทธ์ Covered Call สำหรับรอบสิ้นเดือนกรกฎาคม</p>
+                <p><strong>Risk:</strong> หากราคา BTC ทะลุเกิน $66,000 ณ วันหมดอายุ อาจมีความเสี่ยงที่พอร์ตจะต้องส่งมอบ BTC หรือต้องทำการซื้อคืนเพื่อ Roll ออปชันไปรอบถัดไป</p>
+                <p><strong>Verify:</strong> ตรวจสอบการเพิ่มขึ้นของพรีเมียมรวมในพอร์ต หรือตรวจสอบในส่วนของ Opportunity Screen ในหน้าแดชบอร์ด</p>
             </div>
         </div>
 
-        <!-- Card 4 -->
-        <div class="card sell">
-            <div class="card-header">
-                <h2 class="card-title">#4 — OTM Put Sell (Mispricing)</h2>
-                <span class="badge mispricing">MISPRICING</span>
-            </div>
-            <div class="ticket-row">
-                <div class="ticket-box"><span class="snapshot-label">Instrument</span><span class="snapshot-value">BTC-31JUL26-60000-P</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Order</span><span class="snapshot-value side-sell">SELL 0.1</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Limit</span><span class="snapshot-value">0.0190</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Edge</span><span class="snapshot-value highlight-green">+0.00053 BTC</span></div>
-            </div>
-            <div class="details-section">
-                <p><strong>Why:</strong> สัญญานี้มีราคาแพงผิดปกติเช่นกัน (+0.27 IV pts) และให้ Edge เป็นบวกถึง 0.00053 BTC เหมาะกับการใช้ตั้งรับเพื่อการสะสมบิทคอยน์ในระดับราคา 60,000 ดอลลาร์</p>
-                <p><strong>Risk:</strong> มีโอกาสที่จะถูก Assignment ที่ราคา 60,000 ดอลลาร์ หากตลาดพักตัวลงมาอย่างรวดเร็ว</p>
-                <p><strong>Verify:</strong> ดูที่ผลลัพธ์ของค่า Margin Requirement และเช็คเงินทุนสำรองว่าครอบคลุมภาระที่อาจเกิดขึ้น</p>
-            </div>
-        </div>
-
-        <!-- Card 5 -->
-        <div class="card sell">
-            <div class="card-header">
-                <h2 class="card-title">#5 — OTM Call Sell (Mispricing)</h2>
-                <span class="badge mispricing">MISPRICING</span>
-            </div>
-            <div class="ticket-row">
-                <div class="ticket-box"><span class="snapshot-label">Instrument</span><span class="snapshot-value">BTC-25SEP26-68000-C</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Order</span><span class="snapshot-value side-sell">SELL 0.1</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Limit</span><span class="snapshot-value">0.0725</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Edge</span><span class="snapshot-value highlight-green">+0.00020 BTC</span></div>
-            </div>
-            <div class="details-section">
-                <p><strong>Why:</strong> สัญญา Call นี้มีราคาที่ค่อนข้างแพง จึงให้ผลตอบแทนจากพรีเมียมที่ดีสำหรับการทำกลยุทธ์แบบ Covered Call สำหรับราคาเป้าหมาย 68,000 ดอลลาร์</p>
-                <p><strong>Risk:</strong> หากราคาบิทคอยน์ขึ้นทะลุ 68,000 ดอลลาร์ จะสูญเสียโอกาสในการทำกำไรจากส่วนต่างราคาเหรียญที่ปรับขึ้นไปเกินกว่าระดับ Strike นี้</p>
-                <p><strong>Verify:</strong> ตรวจสอบพรีเมียมรับล่วงหน้าในแท็บ POSITIONS ว่าเข้ามาหนุนความเสี่ยงทางลงได้ตามที่ต้องการ</p>
-            </div>
-        </div>
-
-        <!-- Card 6 -->
+        <!-- Opportunity #4 -->
         <div class="card buy">
             <div class="card-header">
-                <h2 class="card-title">#6 — OTM Call Buy (Mispricing)</h2>
-                <span class="badge mispricing">MISPRICING</span>
+                <h2 class="card-title">#4 — BTC-26JUN26-69000-C (Cheap OTM Call Buy)</h2>
+                <span class="badge mispricing">Mispricing</span>
             </div>
             <div class="ticket-row">
                 <div class="ticket-box"><span class="snapshot-label">Instrument</span><span class="snapshot-value">BTC-26JUN26-69000-C</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Order</span><span class="snapshot-value side-buy">BUY 0.1</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Limit</span><span class="snapshot-value">0.0090</span></div>
-                <div class="ticket-box"><span class="snapshot-label">Edge</span><span class="snapshot-value highlight-green">+0.00030 BTC</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Side/Qty</span><span class="snapshot-value side-buy">BUY 0.1 BTC</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Limit</span><span class="snapshot-value">0.0055 BTC (~$361)</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Edge</span><span class="snapshot-value highlight-green">+0.00073 BTC</span></div>
             </div>
             <div class="details-section">
-                <p><strong>Why:</strong> สัญญา Call นี้มีราคาถูกผิดปกติ (-3.77 IV pts) การซื้อสัญญานี้ช่วยเพิ่ม Upside exposure ในระยะสั้นด้วยต้นทุนที่ต่ำ และมี Edge เชิงบวกเสมอ</p>
-                <p><strong>Risk:</strong> หากราคาบิทคอยน์ไม่พุ่งทะลุขึ้นไปเหนือระดับ 69,000 ดอลลาร์ ภายในวันที่ 26 มิถุนายน จะเสียค่าพรีเมียมเต็มจำนวน</p>
-                <p><strong>Verify:</strong> เช็คในแท็บ Opportunity Screen ความได้เปรียบทางราคาจะต้องเป็นบวกอยู่ตลอด</p>
+                <p><strong>Why:</strong> ออปชันฝั่งซื้อ OTM ระยะสั้นที่ราคาถูกมาก ต่ำกว่า Fitted Smile ถึง -5.01 IV points และมีค่าความได้เปรียบทางสถิติ (Buy Edge) สูงถึง +0.00073 BTC เหมาะสำหรับการซื้อเพื่อเป็น Call Protection ป้องกันความเสี่ยงขาขึ้นในพอร์ต Wheel เผื่อกรณีเกิดการฟื้นตัวอย่างรวดเร็วของตลาด</p>
+                <p><strong>Risk:</strong> จ่ายค่าพรีเมียม 0.0055 BTC หากราคา BTC ไปไม่ถึง $69,000 ภายในวันที่ 26 มิ.ย. 26 ออปชันนี้จะหมดอายุอย่างไร้ค่า</p>
+                <p><strong>Verify:</strong> ตรวจสอบตำแหน่งความเบี่ยงเบนของ IV ที่ราคาใช้สิทธิ์ 69,000 ในกราฟ IV Surface เทียบกับ Fitted Smile</p>
+            </div>
+        </div>
+
+        <!-- Opportunity #5 -->
+        <div class="card sell">
+            <div class="card-header">
+                <h2 class="card-title">#5 — BTC-25SEP26-54000-P (Safe OTM Put Write)</h2>
+                <span class="badge mispricing">Mispricing</span>
+            </div>
+            <div class="ticket-row">
+                <div class="ticket-box"><span class="snapshot-label">Instrument</span><span class="snapshot-value">BTC-25SEP26-54000-P</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Side/Qty</span><span class="snapshot-value side-sell">SELL 0.1 BTC</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Limit</span><span class="snapshot-value">0.0215 BTC (~$1,411)</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Edge</span><span class="snapshot-value highlight-green">+0.00041 BTC</span></div>
+            </div>
+            <div class="details-section">
+                <p><strong>Why:</strong> ได้รับประโยชน์จากการขายออปชันฝั่ง Put ที่มีพรีเมียมสูงกว่าจุดอื่นในระดับเดียวกัน (+0.33 IVpts จาก Fitted Smile) มีระยะห่างที่ปลอดภัยจากราคาตลาดปัจจุบันกว่า 17% ช่วยสะสมกระแสเงินสดเข้ามาในพอร์ต โดยมี Edge ที่เป็นบวกสุทธิหลังจากหัก Bid-Ask Spread แล้ว</p>
+                <p><strong>Risk:</strong> หากราคาตลาดของ BTC ร่วงลงต่ำกว่าระดับ $54,000 ณ วันหมดอายุ (25 ก.ย.) จะส่งผลให้พอร์ตต้องรับมอบ (Assign) สัญญาซื้อ BTC ที่ราคา $54,000</p>
+                <p><strong>Verify:</strong> ติดตามค่า Worst Scenario Margin และตารางพิกัดความเสี่ยงในแผนการสะสม Put Ladder ในแท็บ Strategy</p>
+            </div>
+        </div>
+
+        <!-- Opportunity #6 -->
+        <div class="card sell">
+            <div class="card-header">
+                <h2 class="card-title">#6 — BTC-25SEP26-55000-P (High IV Put Write)</h2>
+                <span class="badge mispricing">Mispricing</span>
+            </div>
+            <div class="ticket-row">
+                <div class="ticket-box"><span class="snapshot-label">Instrument</span><span class="snapshot-value">BTC-25SEP26-55000-P</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Side/Qty</span><span class="snapshot-value side-sell">SELL 0.1 BTC</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Limit</span><span class="snapshot-value">0.0240 BTC (~$1,575)</span></div>
+                <div class="ticket-box"><span class="snapshot-label">Edge</span><span class="snapshot-value highlight-green">+0.00034 BTC</span></div>
+            </div>
+            <div class="details-section">
+                <p><strong>Why:</strong> เป็นออปชันฝั่งขายที่มีค่าพรีเมียมค่อนข้างแพง (Rich +0.35 IVpts เทียบกับ Fitted Smile) และสอดคล้องกับพอร์ต Wheel ในการเขียน Put ที่ระดับล่างของตลาดเพื่อรับพรีเมียมสะสมสูงสุดในกลุ่ม OTM Puts สำหรับการหมดอายุรอบเดือนกันยายน</p>
+                <p><strong>Risk:</strong> หากราคา BTC ตกลงไปต่ำกว่าระดับ $55,000 ณ วันหมดอายุ จะถูกบังคับให้รับซื้อ BTC ที่ราคาใช้สิทธิ์ดังกล่าว</p>
+                <p><strong>Verify:</strong> ตรวจสอบพรีเมียมรวมที่พอร์ตจะสะสม และดูสถานะของเส้นประ IV Smile ที่ปรับปรุงราคาล่าสุดในส่วนของ Opportunity Screen</p>
             </div>
         </div>
     </div>
@@ -177,59 +189,66 @@
                 <tr>
                     <th>Instrument</th>
                     <th>Type</th>
-                    <th>Action</th>
-                    <th>Limit Price</th>
-                    <th>Edge</th>
+                    <th>Side/Qty</th>
+                    <th>Limit Price (BTC)</th>
+                    <th>Est. USD</th>
+                    <th>Edge (BTC)</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td>BTC-26JUN26-66000-P</td>
-                    <td>Mispricing</td>
-                    <td class="side-buy">BUY</td>
-                    <td>0.0220</td>
-                    <td class="highlight-green">+0.00103 BTC</td>
+                    <td><strong>BTC-26JUN26-65000-P</strong></td>
+                    <td>Put</td>
+                    <td class="side-buy">BUY 0.1 BTC</td>
+                    <td>0.0180 BTC</td>
+                    <td>~$1,181</td>
+                    <td class="highlight-green">+0.00119 BTC</td>
                 </tr>
                 <tr>
-                    <td>BTC-26JUN26-70000-C</td>
-                    <td>Ladder / Mispricing</td>
-                    <td class="side-buy">BUY</td>
-                    <td>0.0060</td>
-                    <td class="highlight-green">+0.00028 BTC</td>
+                    <td><strong>BTC-26JUN26-70000-C</strong></td>
+                    <td>Call</td>
+                    <td class="side-buy">BUY 0.1 BTC</td>
+                    <td>0.0034 BTC</td>
+                    <td>~$223</td>
+                    <td class="highlight-green">+0.00061 BTC</td>
                 </tr>
                 <tr>
-                    <td>BTC-31JUL26-61000-P</td>
-                    <td>Mispricing</td>
-                    <td class="side-sell">SELL</td>
-                    <td>0.0225</td>
-                    <td class="highlight-green">+0.00069 BTC</td>
+                    <td><strong>BTC-31JUL26-66000-C</strong></td>
+                    <td>Call</td>
+                    <td class="side-sell">SELL 0.1 BTC</td>
+                    <td>0.0480 BTC</td>
+                    <td>~$3,151</td>
+                    <td class="highlight-green">+0.00063 BTC</td>
                 </tr>
                 <tr>
-                    <td>BTC-31JUL26-60000-P</td>
-                    <td>Mispricing</td>
-                    <td class="side-sell">SELL</td>
-                    <td>0.0190</td>
-                    <td class="highlight-green">+0.00053 BTC</td>
+                    <td><strong>BTC-26JUN26-69000-C</strong></td>
+                    <td>Call</td>
+                    <td class="side-buy">BUY 0.1 BTC</td>
+                    <td>0.0055 BTC</td>
+                    <td>~$361</td>
+                    <td class="highlight-green">+0.00073 BTC</td>
                 </tr>
                 <tr>
-                    <td>BTC-25SEP26-68000-C</td>
-                    <td>Mispricing</td>
-                    <td class="side-sell">SELL</td>
-                    <td>0.0725</td>
-                    <td class="highlight-green">+0.00020 BTC</td>
+                    <td><strong>BTC-25SEP26-54000-P</strong></td>
+                    <td>Put</td>
+                    <td class="side-sell">SELL 0.1 BTC</td>
+                    <td>0.0215 BTC</td>
+                    <td>~$1,411</td>
+                    <td class="highlight-green">+0.00041 BTC</td>
                 </tr>
                 <tr>
-                    <td>BTC-26JUN26-69000-C</td>
-                    <td>Mispricing</td>
-                    <td class="side-buy">BUY</td>
-                    <td>0.0090</td>
-                    <td class="highlight-green">+0.00030 BTC</td>
+                    <td><strong>BTC-25SEP26-55000-P</strong></td>
+                    <td>Put</td>
+                    <td class="side-sell">SELL 0.1 BTC</td>
+                    <td>0.0240 BTC</td>
+                    <td>~$1,575</td>
+                    <td class="highlight-green">+0.00034 BTC</td>
                 </tr>
             </tbody>
         </table>
     </div>
     <p style="text-align: center; color: var(--text-muted); margin-top: 20px; font-size: 11px;">
-        <em>* Place these yourself on Deribit &mdash; Trading Advisor does not execute.</em>
+        <em>* Place these yourself on Deribit — Trading Advisor does not execute.</em>
     </p>
 </div>
 </body>

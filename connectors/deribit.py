@@ -143,7 +143,8 @@ def fetch() -> dict:
     import time
     import json
     
-    cache_file = ".deribit_logs_cache.json"
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cache_file = os.path.join(project_root, ".deribit_logs_cache.json")
     cached_logs = []
     if os.path.exists(cache_file):
         try:
