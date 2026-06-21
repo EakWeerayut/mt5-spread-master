@@ -1,0 +1,107 @@
+{
+  "19ea8b18c4ea4269": {
+    "date": "2026-06-08",
+    "beginning": 165124.03,
+    "ending": 169843.12,
+    "opt_long": 2500.0,
+    "opt_short": 6250.0,
+    "trades": [
+      {
+        "code": "USDM26",
+        "qty": 8.0,
+        "fee_paid": 52.22
+      },
+      {
+        "code": "USDM26C33.00",
+        "qty": 5.0,
+        "fee_paid": 48.69
+      }
+    ],
+    "type": "confirm"
+  },
+  "19e6f36236f44498": {
+    "date": "2026-05-28",
+    "beginning": 165303.4,
+    "ending": 165124.03,
+    "opt_long": 2960.0,
+    "opt_short": 5020.0,
+    "trades": [
+      {
+        "code": "S50M26C1040",
+        "qty": 1.0,
+        "fee_paid": 19.37
+      },
+      {
+        "code": "S50K26C1000",
+        "qty": 1.0,
+        "fee_paid": 0.0
+      },
+      {
+        "code": "USDK26C33.00",
+        "qty": 5.0,
+        "fee_paid": 0.0
+      }
+    ],
+    "type": "confirm"
+  },
+  "19e6a30e0b7bb2ec": {
+    "date": "2026-05-27",
+    "beginning": 164206.04,
+    "ending": 165303.4,
+    "opt_long": 2700.0,
+    "opt_short": 5620.0,
+    "trades": [
+      {
+        "code": "USDM26",
+        "qty": 5.0,
+        "fee_paid": 32.64
+      }
+    ],
+    "type": "confirm"
+  },
+  "19e653cfe3f5143a": {
+    "date": "2026-05-26",
+    "beginning": 178663.49,
+    "ending": 164206.04,
+    "opt_long": 3240.0,
+    "opt_short": 5640.0,
+    "trades": [
+      {
+        "code": "S50K26",
+        "qty": 6.0,
+        "fee_paid": 129.04
+      },
+      {
+        "code": "S50M26P1000",
+        "qty": 1.0,
+        "fee_paid": 19.37
+      },
+      {
+        "code": "S50M26",
+        "qty": 6.0,
+        "fee_paid": 129.04
+      }
+    ],
+    "type": "confirm"
+  },
+  "19e2c5fae76647c5": {
+    "date": "2026-05-15",
+    "beginning": 149546.13,
+    "ending": 178663.49,
+    "opt_long": 0.0,
+    "opt_short": 7130.0,
+    "trades": [
+      {
+        "code": "USDM26",
+        "qty": 5.0,
+        "fee_paid": 32.64
+      }
+    ],
+    "type": "confirm"
+  },
+  "19e2c5170433ff11": {
+    "date": "2026-05-15",
+    "amount": 28000.0,
+    "type": "deposit"
+  }
+}

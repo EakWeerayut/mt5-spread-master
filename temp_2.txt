@@ -1,0 +1,94 @@
+เรียน
+To
+(cid:44)(cid:2)(cid:1)(cid:27)(cid:1)(cid:4)(cid:3)(cid:1)(cid:1)(cid:1)(cid:29)(cid:44)
+10Q032000S
+บร(cid:45)ษัทหลักทรัพย ล(cid:46)เบอเรเตอร จำกัด (สำนักงานใหญ)
+LIBERATOR SECURITIES CO., LTD. (Head Office)
+944 โครงการสามยาน มิตรทาวน ชั้นที่ 17 หองเลขที่ 1702 – 1705 และ 1710 No Print หน้า / Page 1 / 2
+ถนนพระราม 4 แขวงวังใหม เขตปทุมวัน กรุงเทพฯ 10330 โทร. 02-760-6999 วันที่ซื้อ/ขาย
+944 Mitrtown Office Tower 17th Fl, Room No. 1702 – 1705 and 1710 Trading Date 27/05/2026
+Rama 4 Road, Wangmai, Pathumwan, Bangkok 10330 Tel. 02-760-6999
+วันที่ครบกำหนดชำระเงิน
+เลขประจำตัวผูเสียภาษี / TAX ID 0105564058690 28/05/2026
+Settlement Date
+ใบยืนยันการซื้อขายสัญญาซื้อขายล่วงหน้า / ใบเสร็จรับเงิน / ใบกำกับภาษี
+เลขที่บัญชี
+7042357-7
+Confirmation Note / Receipt / Tax Invoice Account No.
+เลขประจำตัวผู้เสียภาษี
+3100902062275
+คุณ วีระยุทธ์ อัศวพงศ์กุล Tax ID No.
+59/752 หมู่ที่5 หมู่บ้านวิลลาจิโอ ศาลายา ซอย53/2 ประเภทบัญชี Derivatives Account
+Account Type
+ถนนสำเร็จพัฒนา ตำบลศาลากลาง
+ผู้แนะนำการลงทุน
+7000 (Internet Trading)
+อำเภอบางกรวย จังหวัดนนทบุรี 11130 Investment Consultant
+เลขที่เอกสาร
+DN-20260527-01557
+Document No.
+เลขที่ใบกำกับภาษี
+TD-20260501-00006045
+Tax Invoice No.
+สาขาที่ออกใบกำกับภาษี
+No Print_DCF 000230 [NP 0230/0381_(0230(01/01)-T)] HO
+Branch for Tax Invoice
+Trading Transaction
+Instrument Long / Premium Commission / Charge
+Status Quantity Cost Price VAT W/H Tax
+Code Short Amount Fee Amount
+USDM26 NET Short 5 32.57 0.00 30.50 2.14 0.00 -32.64
+Total 0.00 30.50 2.14 0.00 -32.64
+Position Closing
+Instrument Realized Gain / Loss
+Open Date Close Date Quantity Cost Price Close Price
+Code Futures Options1
+USDM26 25/03/2026 27/05/2026 3 32.36 32.57 630.00 0.00
+USDM26 26/03/2026 27/05/2026 2 32.32 32.57 500.00 0.00
+Total 1,130.00 0.00
+Outstanding Position as of
+Instrument Settlement Unrealized Options Value
+Trade Date Long Short Cost Price
+Code Price Gain / Loss Long Short
+S50M26 26/05/2026 0 5 1,014.70 1,018.80 -4,100.00 0.00 0.00
+USDM26 26/03/2026 10 0 32.32 32.49 1,700.00 0.00 0.00
+USDM26 26/03/2026 5 0 32.34 32.49 750.00 0.00 0.00
+USDM26 27/03/2026 5 0 32.65 32.49 -800.00 0.00 0.00
+USDM26 27/03/2026 5 0 32.61 32.49 -600.00 0.00 0.00
+USDM26 27/03/2026 5 0 32.62 32.49 -650.00 0.00 0.00
+USDM26 30/03/2026 5 0 32.53 32.49 -200.00 0.00 0.00
+USDM26 30/03/2026 20 0 32.50 32.49 -200.00 0.00 0.00
+USDM26 07/05/2026 5 0 31.98 32.49 2,550.00 0.00 0.00
+S50K26C1000 07/05/2026 0 1 16.60 14.00 0.00 2,800.00 0.00
+USDK26C33.00 30/04/2026 0 5 0.22 0.01 0.00 50.00 0.00
+USDM26C32.75 03/04/2026 0 2 0.49 0.21 0.00 420.00 0.00
+USDM26C32.75 07/04/2026 0 10 0.45 0.21 0.00 2,100.00 0.00
+S50M26P1000 26/05/2026 1 0 15.30 13.50 0.00 0.00 2,700.00
+USDM26P31.50 08/04/2026 0 5 0.38 0.05 0.00 250.00 0.00
+Total 61.00 28.00 -1,550.00 2,700.00 5,620.00
+Statement of Account
+Delivery
+Begining Ending Non - Cash Advance Realized Gain / Loss
+Interest Deferred Deposit Amount
+Cash Balance Cash Balance Collateral Withdrawal Futures
+Charge
+164,206.04 165,303.40 0.00 0.00 0.00 0.00 0.00 0.00 1,130.00
+เอกสารนี้ได้จัดทำาและส่งข้อมูลให้แก่กรมสรรพากรด้วยวิธีการทางอิเล็กทรอนิกส์ มีหน้าต่อไป (Continue)
+ชื่อ เลขที่บัญชี หน้าที่
+คุณ วีระยุทธ์ อัศวพงศ์กุล 7042357-7 2 / 2
+Name Account No. Page
+Unrealized Maintenance Excess / Insufficient Net
+Equity Balance Initial Margin
+Gain / Loss Margin Margin Customer Paid
+-1,550.00 163,753.40 132,904.75 94,280.71 30,848.65 0.00
+Total 0.00
+Commission / Unbundled Fee
+Commission Trading Fee Clearing Fee Regulatory Fee Other Fee
+25.00 3.50 1.50 0.50 0.00
+ข่าวประชาสัมพันธ์ / Information : บริษัทฯ ได้ซื้อ/ขายหลักทรัพย์ตามคำสั่งของท่านดังรายการข้างต้นนี้ หากไม่มีการทักท้วง
+ประการใดก่อนวันครบกำหนดชำระเงิน บริษัทฯ จะถือว่าท่านรับรองรายการซื้อ / ขาย
+ดังกล่าวว่าถูกต้อง / We have traded the above securities in accordance with your order
+as stated herein. If no objection had been made before the settlement date, such
+trading transaction shall be deemed correct and accepted by you.
+.........................................................................................
+ผู้มีอำนาจลงนาม / Authorized Signature

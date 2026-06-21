@@ -1,0 +1,30 @@
+เลขที่บัญชี ประเภทบัญชี ประเภทธุรกรรม รายละเอียด วันที่มีผล จำนวนเงิน
+Account No. Account Type Transaction Type Description Effective Date Amount
+(cid:44)(cid:2)(cid:1)(cid:27)(cid:8)(cid:4)(cid:3)(cid:1)(cid:1)(cid:1)(cid:29)(cid:44)
+10Q732000S
+บร(cid:45)ษัทหลักทรัพย ล(cid:46)เบอเรเตอร จำกัด (สำนักงานใหญ)
+LIBERATOR SECURITIES CO., LTD. (Head Office)
+944 โครงการสามยาน มิตรทาวน ชั้นที่ 17 หองเลขที่ 1702 – 1705 และ 1710
+ถนนพระราม 4 แขวงวังใหม เขตปทุมวัน กรุงเทพฯ 10330 โทร. 02-760-6999
+944 Mitrtown Office Tower 17th Fl, Room No. 1702 – 1705 and 1710
+Rama 4 Road, Wangmai, Pathumwan, Bangkok 10330 Tel. 02-760-6999
+เลขประจำตัวผูเสียภาษี / TAX ID 0105564058690
+เรียน นาย วีระยุทธ์ อัศวพงศ์กุล
+To 59/752 หมู่ที่5 หมู่บ้านวิลลาจิโอ ศาลายา ซอย53/2 No Print หน้า / Page 1 / 1
+ถนนสำเร็จพัฒนา ตำบลศาลากลาง วันที่
+15/05/2026
+อำเภอบางกรวย จังหวัดนนทบุรี 11130 Date
+รหัสลูกค้า
+7042357
+Customer Code
+ผู้แนะนำการลงทุน
+7000 (Internet Trading)
+No Print_CDCW 000237 [NP 0237/0416_(0237(01/01)-T)] Investment Consultant
+สาขา
+HO
+Branch
+ใบรับฝาก/ใบถอนเงินหลักประกัน
+Cash Deposit/Cash Withdrawal Slip
+7042357-7 TFEX Deposit Deposit QRCode 15/05/2026 28,000.00
+.........................................................................................
+ผู้มีอำนาจลงนาม / Authorized Signature

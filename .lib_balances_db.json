@@ -1,0 +1,274 @@
+{
+  "2026-05-15": {
+    "asset": 149546.13,
+    "asset_adj": 142416.13,
+    "fee": -32.64,
+    "pnl": 0.0,
+    "transfer": 28000.0,
+    "unexplained": 0.0
+  },
+  "2026-05-16": {
+    "asset": 178663.49,
+    "asset_adj": 142416.13,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-17": {
+    "asset": 178663.49,
+    "asset_adj": 142416.13,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-18": {
+    "asset": 178663.49,
+    "asset_adj": 142416.13,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-19": {
+    "asset": 178663.49,
+    "asset_adj": 142416.13,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-20": {
+    "asset": 178663.49,
+    "asset_adj": 142416.13,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-21": {
+    "asset": 178663.49,
+    "asset_adj": 142416.13,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-22": {
+    "asset": 178663.49,
+    "asset_adj": 142416.13,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-23": {
+    "asset": 178663.49,
+    "asset_adj": 142416.13,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-24": {
+    "asset": 178663.49,
+    "asset_adj": 142416.13,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-25": {
+    "asset": 178663.49,
+    "asset_adj": 142416.13,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-26": {
+    "asset": 178663.49,
+    "asset_adj": 176263.49,
+    "fee": -277.45,
+    "pnl": 34124.80999999998,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-27": {
+    "asset": 164206.04,
+    "asset_adj": 161286.04,
+    "fee": -32.64,
+    "pnl": -14944.809999999983,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-28": {
+    "asset": 165303.4,
+    "asset_adj": 163243.4,
+    "fee": -87.43,
+    "pnl": 2044.789999999986,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-29": {
+    "asset": 165124.03,
+    "asset_adj": 163243.4,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-30": {
+    "asset": 165124.03,
+    "asset_adj": 163243.4,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-05-31": {
+    "asset": 165124.03,
+    "asset_adj": 163243.4,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-01": {
+    "asset": 165124.03,
+    "asset_adj": 163243.4,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-02": {
+    "asset": 165124.03,
+    "asset_adj": 163243.4,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-03": {
+    "asset": 165124.03,
+    "asset_adj": 163243.4,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-04": {
+    "asset": 165124.03,
+    "asset_adj": 163243.4,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-05": {
+    "asset": 165124.03,
+    "asset_adj": 163243.4,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-06": {
+    "asset": 165124.03,
+    "asset_adj": 163243.4,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-07": {
+    "asset": 165124.03,
+    "asset_adj": 163243.4,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-08": {
+    "asset": 165124.03,
+    "asset_adj": 161374.03,
+    "fee": -100.914,
+    "pnl": -1768.4559999999954,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-09": {
+    "asset": 169843.12,
+    "asset_adj": 161374.03,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-10": {
+    "asset": 169843.12,
+    "asset_adj": 161374.03,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-11": {
+    "asset": 169843.12,
+    "asset_adj": 161374.03,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-12": {
+    "asset": 169843.12,
+    "asset_adj": 161374.03,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-13": {
+    "asset": 169843.12,
+    "asset_adj": 161374.03,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-14": {
+    "asset": 169843.12,
+    "asset_adj": 161374.03,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-15": {
+    "asset": 169843.12,
+    "asset_adj": 161374.03,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-16": {
+    "asset": 169843.12,
+    "asset_adj": 161374.03,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  },
+  "2026-06-17": {
+    "asset": 169843.12,
+    "asset_adj": 161374.03,
+    "fee": 0.0,
+    "pnl": 0.0,
+    "transfer": 0.0,
+    "unexplained": 0.0
+  }
+}

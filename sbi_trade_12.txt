@@ -1,0 +1,43 @@
+บริษัทหลักทรัพย์ เอสบีไอ ไทย ออนไลน์ จำากัด ใบยืนยันการซือ้ ขายหลักทรัพย์ / ใบสำาคัญจ่าย / ใบเสร็จรับเงิน / ใบกำากับภาษี
+SBI Thai Online Securities Company Limited Confirmation Note / Payment / Receipt / Tax Invoice
+1768 อาคารไทยซัมมิท ทาวเวอร์ ชั้น 31 ถนนเพชรบุรีตัดใหม่ แขวงบางกะปิ เขตห้วยขวาง กทม. 10310
+1768 Thai Summit Tower 31st Floor, New Phetchburi Rd. Bangkapi, Huaykwang, BKK 10310
+Tel. 02-022-1499,Fax. 02-251-5078, Website: www.sbito.co.th Tax id. 0105557157165 สาขาที่ออกใบกำากับภาษี : 00000 สำานักงานใหญ่ เอกสารออกเป็นชุด
+เลขที่ประจำาตัวผู้เสียภาษีผู้รับบริการ : 3100902062275
+บัญชีเลขที ่A/C NO. สาขา BRANCH วันทซี่ ือ้ -ขาย TRADING DATE
+นาย วีระยุทธ์ อัศวพงศ์กุล
+008849-7 สำานักงานใหญ่ 21/04/2026
+59/752 หมู่บ้านวิลลาจิโอ ปิ่นเกล้า ศาลายา ซอย53/2
+เอกสารเลขที่ ใบกำากับภาษีเลขที่ วันทคี่ รบกำาหนดชำาระ
+ถนนสำาเร็จพัฒนา ตำาบลศาลากลาง DOCUMENT NO. TAX INV. NO. SETTLEMENT DATE
+(cid:128)(cid:11)(cid:101)(cid:59)(cid:81)(cid:6)(cid:115)(cid:26)(cid:103)(cid:29)(cid:95)(cid:23)(cid:69)(cid:43)
+(cid:128)(cid:32)(cid:26)(cid:38)(cid:38)(cid:38)(cid:120)(cid:2)(cid:86)(cid:94)(cid:58)(cid:18)(cid:78)(cid:86) อำาเภอบางกรวย จังหวัดนนทบุรี 11130
+DN-20260421-00174 T202600197380 23/04/2026
+ประเภทบัญชี เจ้าหน้าทกี่ ารตลาด วงเงินซือ้ ขายปัจจุบัน
+ACCOUNT TYPE MARKETING OFFICER CREDIT LIMIT
+DLC-001430_20260421
+CASH BALANCE ฝ่าย ลูกค้าสัมพันธ์ 131,072.00
+สัญญาเลขที่ ชื่อหลักทรัพย์ จำานวน (หุ้น)ราคาต่อหน่วย จำานวนเงิน ค่านายหน้า ค่าธรรมเนียม ค่าธรรมเนียม ภาษีมูลค่าเพิ่ม จำานวนเงินสุทธิ
+ตลาดหลักทรัพย์ชำาระราคา/ส่งมอบหุ้น
+CONTRACT NO. SEC. NAME QUANTITY UNIT PRICE AMOUNT COMMISSION VAT NET AMOUNT
+TRAD+Reg.FEE CLEARING FEE
+BU-20260421-13061 HTECH 6,700 2.94 19,698.00 14.78 1.18 0.20 1.13 19,715.29
+BU-20260421-12739 SJWD 2,500 8.20 20,500.00 15.37 1.23 0.20 1.18 20,517.98
+******TOT AL BUY****** 40,233.27
+อัตราภาษีมูลค่าเพิ่มร้อยละ 7 รวมเงิน
+30.15 2.41 0.40 2.31
+VAT RATE(%) TOTAL
+ภาษีเงินได้หัก ณ ที่จ่าย
+T เงินสด 40,233.27 บาท o หักบัญชีอัตโนมัติ เลขที่บัญชี WITHHOLDING TAX 0.00
+CASH BAHT ATS
+o เช็ค/เงินโอน ธนาคาร-สาขา เลขที่เช็ค ลงวันที่ จำานวนเงิน บาท ลูกค้ารับเงินสุทธิ
+CHEQUE/TRANSFER BANK-BRANCH C/Q No. DATE AMOUNT BAHT NET CUSTOMER RECEIVED
+หมายเหตุ : ใบเสร็จรับเงินนี้จะสมบูรณ์เมื่อบริษัทฯ ได้รับชำาระเงินตามจำานวนที่เรียกเก็บครบถ้วนถูกต้องแล้ว ลูกค้าจ่ายเงินสุทธิ -40,233.27
+This receipt shall be valid only upon the fully completed collection. NET CUSTOMER PAYMENT
+บริษัทฯ ได้ซื้อ/ขายหลักทรัพย์ตามคำาสั่งของท่านดังรายการข้างต้นนี้หากไม่มีการทักท้วงประการใดก่อนวันครบกำาหนด
+ชำาระเงินบริษัทฯ จะถือว่าท่านรับรองรายการซื้อ/ขายดังกล่าวถูกต้องแล้ว
+We have carried out the above transactions for your account. If we are not notified of any discrepancy before
+the settlement date then such transactions shall be deemed to be correct and to have been accepted.
+ผู้มีอำานาจทำาการแทนบริษัทฯ
+AUTHORIZED SIGNATURE
+เอกสารนีไ้ด้จัดทำาและส่งข้อมูลให้แก่สรรพากรด้วยวิธีการทางอิเล็กทรอนิกส์ Digitally signed by บริษัท หลักทรัพย์ เอสบีไอ ไทย ออนไลน์ จำากัด หน้าท ี่/ Page 1 / 1
